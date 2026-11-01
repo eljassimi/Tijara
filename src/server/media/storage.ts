@@ -23,9 +23,12 @@ function safeKeyParts(key: string) {
 }
 
 function localObjectPath(key: string) {
-  const root =
-    process.env.MEDIA_LOCAL_ROOT || join(process.cwd(), ".data", "uploads");
-  return join(root, ...safeKeyParts(key));
+  const parts = safeKeyParts(key);
+  const override = process.env.MEDIA_LOCAL_ROOT?.trim();
+  // Keep the default root statically scoped so Turbopack does not trace the
+  // whole project. Override paths are ignored for filesystem tracing.
+  if (override) return join(/*turbopackIgnore: true*/ override, ...parts);
+  return join(process.cwd(), ".data", "uploads", ...parts);
 }
 
 function contentTypeForKey(key: string) {

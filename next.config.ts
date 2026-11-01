@@ -5,8 +5,20 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const developmentEval =
   process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'";
 
-const authHost = new URL(process.env.AUTH_URL ?? "http://invalid.local")
-  .hostname;
+function resolveAuthUrl(raw: string | undefined): URL {
+  const value = (raw ?? "http://invalid.local").trim();
+  const normalized = value.startsWith("//") ? `https:${value}` : value;
+  try {
+    return new URL(normalized);
+  } catch {
+    throw new Error(
+      `AUTH_URL must be a full URL with protocol, e.g. https://your-domain.com (received: ${raw ?? ""})`,
+    );
+  }
+}
+
+const authUrl = resolveAuthUrl(process.env.AUTH_URL);
+const authHost = authUrl.hostname;
 const insecureLocalAuth =
   process.env.ALLOW_INSECURE_LOCAL_AUTH === "true" &&
   (authHost === "localhost" || authHost === "127.0.0.1");

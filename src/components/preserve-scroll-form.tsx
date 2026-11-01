@@ -3,8 +3,8 @@
 import {
   useTransition,
   type ComponentProps,
-  type FormEvent,
   type ReactNode,
+  type SubmitEvent,
 } from "react";
 
 type Props = Omit<ComponentProps<"form">, "action"> & {
@@ -15,7 +15,7 @@ type Props = Omit<ComponentProps<"form">, "action"> & {
 export function PreserveScrollForm({ action, children, onSubmit, ...props }: Props) {
   const [, startTransition] = useTransition();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     onSubmit?.(event);
     if (event.defaultPrevented) return;
     event.preventDefault();
