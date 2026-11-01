@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+.env
+.env.local
+*.log
+*.tsbuildinfo
+.DS_Store
+uploads/
+minio-data/
+postgres-data/
+redis-data/
+.data/

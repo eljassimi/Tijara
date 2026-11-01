@@ -1,0 +1,945 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Locale {
+  FR
+  AR
+}
+
+enum Role {
+  SUPER_ADMIN
+  CATALOG_MANAGER
+  CONFIRMATION_AGENT
+  FINANCE
+  SUPPORT
+  AFFILIATE
+  AFFILIATE_STAFF
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum AffiliateLevel {
+  STARTER
+  PRO
+  MASTER
+}
+
+enum StaffPermissionKey {
+  CREATE_ORDERS
+  VIEW_ORDERS
+  VIEW_WALLET
+  REQUEST_PAYOUTS
+  MANAGE_BANK_DETAILS
+  MANAGE_STAFF
+}
+
+enum ConfirmationStatus {
+  NEW
+  CALLING
+  BUSY
+  NO_ANSWER
+  CALL_BACK_LATER
+  CONFIRMED
+  CANCELLED
+  UNREACHABLE
+}
+
+enum DeliveryStatus {
+  NOT_READY
+  AWAITING_PICKUP
+  IN_TRANSIT
+  DELIVERED
+  NOT_DELIVERED
+  REFUSED
+  RETURNED
+}
+
+enum DeliverySyncStatus {
+  NOT_SENT
+  SENT_MANUALLY
+  SYNCED
+  FAILED
+}
+
+enum DeliveryIntegrationMode {
+  MANUAL
+  API
+}
+
+enum DeliveryIntegrationStatus {
+  NOT_CONFIGURED
+  CONNECTED
+  PAUSED
+}
+
+enum StockMovementType {
+  ORDER_CONFIRM
+  ORDER_RETURN
+  MANUAL
+  IMPORT
+}
+
+enum FinanceStatus {
+  NOT_READY
+  UNINVOICED
+  INVOICED
+  PAID
+}
+
+enum OrderStatusType {
+  CONFIRMATION
+  DELIVERY
+  FINANCE
+}
+
+enum CallOutcome {
+  CALLING
+  BUSY
+  NO_ANSWER
+  CALL_BACK_LATER
+  CONFIRMED
+  CANCELLED
+  UNREACHABLE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+}
+
+enum WalletTransactionType {
+  COMMISSION_CREDIT
+  PAYOUT_DEBIT
+  ADJUSTMENT
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum PayoutStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum TicketType {
+  SUPPORT
+  CLAIM
+}
+
+enum NotificationType {
+  ORDER_STATUS
+  COMMISSION_CREDIT
+  PAYOUT_STATUS
+  TICKET_REPLY
+  ANNOUNCEMENT
+  SYSTEM
+  CHAT_MESSAGE
+  ACCOUNT_STATUS
+  ORDER_ASSIGNED
+  TICKET_CREATED
+  PAYOUT_REQUEST
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  LOGIN
+  MONEY_CREDIT
+  MONEY_DEBIT
+}
+
+enum ImportJobType {
+  EXCEL_IMPORT
+  EXCEL_EXPORT
+  INVOICE_GENERATION
+  NOTIFICATION
+  CONFIRMATION_TIMEOUT
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model User {
+  id              String     @id @default(cuid())
+  name            String
+  email           String     @unique
+  emailVerified   DateTime?
+  passwordHash    String?
+  phone           String?
+  image           String?
+  bankName        String?
+  rib             String?
+  role            Role
+  status          UserStatus @default(PENDING)
+  preferredLocale Locale     @default(FR)
+  lastLoginAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  accounts                   Account[]
+  sessions                   Session[]
+  affiliateProfile           AffiliateProfile?            @relation("AffiliateProfileOwner")
+  supportAgentProfile        SupportAgent?                @relation("SupportAgentUser")
+  staffMembership            AffiliateStaff?              @relation("AffiliateStaffUser")
+  ownedStaff                 AffiliateStaff[]             @relation("AffiliateStaffOwner")
+  createdOrders              Order[]                      @relation("OrderCreator")
+  assignedOrders             Order[]                      @relation("ConfirmationAssignee")
+  orderHistory               OrderStatusHistory[]
+  callAttempts               CallAttempt[]
+  assignedTickets            Ticket[]                     @relation("TicketAssignee")
+  createdTickets             Ticket[]                     @relation("TicketCreator")
+  ticketMessages             TicketMessage[]
+  notifications              Notification[]
+  auditLogs                  AuditLog[]
+  importJobs                 ImportJob[]
+  stockMovements             StockMovement[]
+  confirmatorPayouts         ConfirmatorPayoutRequest[]   @relation("ConfirmatorPayoutAgent")
+  reviewedConfirmatorPayouts ConfirmatorPayoutRequest[]   @relation("ConfirmatorPayoutReviewer")
+  conversationsCreated       Conversation[]               @relation("ConversationCreator")
+  conversationMemberships    ConversationParticipant[]
+  chatMessages               ChatMessage[]
+  announcementsCreated       Announcement[]               @relation("AnnouncementCreator")
+
+  @@index([role, status])
+  @@index([createdAt])
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now())
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+model AffiliateProfile {
+  id                     String              @id @default(cuid())
+  userId                 String              @unique
+  socialPage             String?
+  city                   String?
+  bankName               String?
+  rib                    String?
+  level                  AffiliateLevel      @default(STARTER)
+  supportAgentId         String?
+  approvedAt             DateTime?
+  approvedById           String?
+  orderSheetUrl          String?
+  orderSheetLastSyncedAt DateTime?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  user                   User                @relation("AffiliateProfileOwner", fields: [userId], references: [id], onDelete: Cascade)
+  supportAgent           SupportAgent?       @relation(fields: [supportAgentId], references: [id], onDelete: SetNull)
+  staff                  AffiliateStaff[]
+  carts                  Cart[]
+  orders                 Order[]
+  invoices               Invoice[]
+  walletEntries          WalletTransaction[]
+  payouts                PayoutRequest[]
+  tickets                Ticket[]
+
+  @@index([level])
+  @@index([supportAgentId])
+}
+
+model AffiliateStaff {
+  id                 String            @id @default(cuid())
+  affiliateProfileId String
+  userId             String            @unique
+  ownerId            String
+  active             Boolean           @default(true)
+  invitedAt          DateTime          @default(now())
+  acceptedAt         DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  affiliateProfile   AffiliateProfile  @relation(fields: [affiliateProfileId], references: [id], onDelete: Cascade)
+  user               User              @relation("AffiliateStaffUser", fields: [userId], references: [id], onDelete: Cascade)
+  owner              User              @relation("AffiliateStaffOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  permissions        StaffPermission[]
+
+  @@index([affiliateProfileId, active])
+  @@index([ownerId])
+}
+
+model StaffPermission {
+  id        String             @id @default(cuid())
+  staffId   String
+  key       StaffPermissionKey
+  enabled   Boolean            @default(false)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  staff     AffiliateStaff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, key])
+}
+
+model Category {
+  id            String    @id @default(cuid())
+  nameFr        String
+  nameAr        String
+  slug          String    @unique
+  descriptionFr String?
+  descriptionAr String?
+  sortOrder     Int       @default(0)
+  published     Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  products      Product[]
+
+  @@index([published, sortOrder])
+}
+
+model Product {
+  id                   String           @id @default(cuid())
+  categoryId           String
+  code                 String           @unique
+  slug                 String           @unique
+  nameFr               String
+  nameAr               String?
+  descriptionFr        String           @db.Text
+  descriptionAr        String?          @db.Text
+  videoUrl             String?
+  mediaDriveUrl        String?
+  productPrice         Decimal          @db.Decimal(12, 2)
+  serviceFee           Decimal          @db.Decimal(12, 2)
+  salePrice            Decimal          @db.Decimal(12, 2)
+  commission           Decimal          @db.Decimal(12, 2)
+  allowCustomSalePrice Boolean          @default(false)
+  minSalePrice         Decimal?         @db.Decimal(12, 2)
+  published            Boolean          @default(false)
+  publishedAt          DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  category             Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  images               ProductImage[]
+  variants             ProductVariant[]
+  cartItems            CartItem[]
+  orderLines           OrderLine[]
+
+  @@index([categoryId, published])
+  @@index([published, publishedAt])
+  @@index([commission])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  objectKey String
+  url       String
+  altFr     String?
+  altAr     String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder])
+}
+
+model ProductVariant {
+  id             String          @id @default(cuid())
+  productId      String
+  sku            String          @unique
+  color          String?
+  size           String?
+  stock          Int             @default(0)
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems      CartItem[]
+  orderLines     OrderLine[]
+  stockMovements StockMovement[]
+
+  @@index([productId, active])
+  @@index([stock])
+}
+
+model City {
+  id          String        @id @default(cuid())
+  nameFr      String
+  nameAr      String
+  slug        String        @unique
+  deliveryFee Decimal?      @db.Decimal(12, 2)
+  active      Boolean       @default(true)
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  orders      Order[]
+  couriers    CourierCity[]
+
+  @@index([active, sortOrder])
+}
+
+model Cart {
+  id                 String           @id @default(cuid())
+  affiliateProfileId String
+  createdById        String
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  affiliateProfile   AffiliateProfile @relation(fields: [affiliateProfileId], references: [id], onDelete: Cascade)
+  items              CartItem[]
+
+  @@unique([affiliateProfileId, createdById])
+}
+
+model CartItem {
+  id              String         @id @default(cuid())
+  cartId          String
+  productId       String
+  variantId       String
+  quantity        Int
+  customSalePrice Decimal?       @db.Decimal(12, 2)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  cart            Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product         Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant         ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, variantId])
+  @@index([productId])
+}
+
+model Order {
+  id                  String               @id @default(cuid())
+  code                String               @unique
+  affiliateId         String
+  createdById         String
+  customerName        String
+  phone               String
+  cityId              String
+  deliveryFee         Decimal              @default(0) @db.Decimal(12, 2)
+  address             String?
+  notes               String?              @db.Text
+  importSource        String?
+  externalReference   String?
+  confirmationStatus  ConfirmationStatus   @default(NEW)
+  deliveryStatus      DeliveryStatus       @default(NOT_READY)
+  deliverySyncStatus  DeliverySyncStatus   @default(NOT_SENT)
+  financeStatus       FinanceStatus        @default(NOT_READY)
+  confirmationAgentId String?
+  confirmationReward  Decimal?             @db.Decimal(12, 2)
+  courierId           String?
+  parcelCode          String?
+  shipOn              DateTime?            @db.Date
+  confirmedAt         DateTime?
+  shippedAt           DateTime?
+  sentToCourierAt     DateTime?
+  deliverySyncError   String?              @db.Text
+  deliveredAt         DateTime?
+  paidAt              DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  affiliate           AffiliateProfile     @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  createdBy           User                 @relation("OrderCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  city                City                 @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  confirmationAgent   User?                @relation("ConfirmationAssignee", fields: [confirmationAgentId], references: [id], onDelete: SetNull)
+  courier             Courier?             @relation(fields: [courierId], references: [id], onDelete: SetNull)
+  lines               OrderLine[]
+  history             OrderStatusHistory[]
+  callAttempts        CallAttempt[]
+  invoiceLines        InvoiceLine[]
+  tickets             Ticket[]
+  walletTransactions  WalletTransaction[]
+  stockMovements      StockMovement[]
+
+  @@unique([affiliateId, importSource, externalReference])
+  @@index([affiliateId, createdAt])
+  @@index([phone, createdAt])
+  @@index([confirmationStatus, createdAt])
+  @@index([deliveryStatus, shipOn])
+  @@index([deliverySyncStatus, confirmedAt])
+  @@index([financeStatus, deliveredAt])
+  @@index([confirmationAgentId, confirmationStatus])
+  @@index([courierId, deliveryStatus])
+}
+
+model StockMovement {
+  id            String            @id @default(cuid())
+  variantId     String
+  orderId       String?
+  actorId       String?
+  type          StockMovementType
+  quantityDelta Int
+  stockBefore   Int
+  stockAfter    Int
+  reason        String?           @db.Text
+  createdAt     DateTime          @default(now())
+  variant       ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  order         Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  actor         User?             @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([variantId, createdAt])
+  @@index([orderId])
+  @@index([actorId])
+}
+
+model OrderLine {
+  id                String         @id @default(cuid())
+  orderId           String
+  productId         String
+  variantId         String
+  productNameFr     String
+  productNameAr     String?
+  sku               String
+  quantity          Int
+  productPrice      Decimal        @db.Decimal(12, 2)
+  serviceFee        Decimal        @db.Decimal(12, 2)
+  salePrice         Decimal        @db.Decimal(12, 2)
+  commission        Decimal        @db.Decimal(12, 2)
+  commissionPayable Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  order             Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product           Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant           ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  invoiceLines      InvoiceLine[]
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([variantId])
+}
+
+model OrderStatusHistory {
+  id         String          @id @default(cuid())
+  orderId    String
+  actorId    String?
+  statusType OrderStatusType
+  fromStatus String?
+  toStatus   String
+  note       String?         @db.Text
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  order      Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor      User?           @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@index([actorId])
+}
+
+model CallAttempt {
+  id         String      @id @default(cuid())
+  orderId    String
+  agentId    String
+  outcome    CallOutcome
+  note       String?     @db.Text
+  callbackAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  order      Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  agent      User        @relation(fields: [agentId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, createdAt])
+  @@index([agentId, createdAt])
+  @@index([callbackAt])
+}
+
+model Courier {
+  id                String                    @id @default(cuid())
+  name              String
+  phone             String?
+  integrationMode   DeliveryIntegrationMode   @default(MANUAL)
+  integrationStatus DeliveryIntegrationStatus @default(NOT_CONFIGURED)
+  externalAccountId String?
+  apiBaseUrl        String?
+  active            Boolean                   @default(true)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  orders            Order[]
+  cities            CourierCity[]
+
+  @@index([active, name])
+}
+
+model CourierCity {
+  courierId String
+  cityId    String
+  createdAt DateTime @default(now())
+  courier   Courier  @relation(fields: [courierId], references: [id], onDelete: Cascade)
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@id([courierId, cityId])
+  @@index([cityId])
+}
+
+model Invoice {
+  id                 String              @id @default(cuid())
+  number             String              @unique
+  sequenceYear       Int
+  sequenceNumber     Int
+  affiliateId        String
+  status             InvoiceStatus       @default(DRAFT)
+  locale             Locale              @default(FR)
+  totalCommission    Decimal             @db.Decimal(12, 2)
+  pdfObjectKey       String?
+  issuedAt           DateTime?
+  paidAt             DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  affiliate          AffiliateProfile    @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  lines              InvoiceLine[]
+  walletTransactions WalletTransaction[]
+
+  @@unique([sequenceYear, sequenceNumber])
+  @@index([affiliateId, status, createdAt])
+}
+
+model InvoiceLine {
+  id          String    @id @default(cuid())
+  invoiceId   String
+  orderId     String
+  orderLineId String
+  commission  Decimal   @db.Decimal(12, 2)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  invoice     Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderLine   OrderLine @relation(fields: [orderLineId], references: [id], onDelete: Restrict)
+
+  @@unique([invoiceId, orderLineId])
+  @@index([orderId])
+}
+
+model WalletTransaction {
+  id          String                  @id @default(cuid())
+  reference   String                  @unique
+  affiliateId String
+  orderId     String?
+  invoiceId   String?
+  payoutId    String?
+  type        WalletTransactionType
+  status      WalletTransactionStatus @default(COMPLETED)
+  amount      Decimal                 @db.Decimal(12, 2)
+  note        String?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  affiliate   AffiliateProfile        @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  order       Order?                  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  invoice     Invoice?                @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  payout      PayoutRequest?          @relation(fields: [payoutId], references: [id], onDelete: Restrict)
+
+  @@index([affiliateId, status, createdAt])
+  @@index([orderId])
+  @@index([invoiceId])
+  @@index([payoutId])
+}
+
+model PayoutRequest {
+  id                 String              @id @default(cuid())
+  reference          String              @unique
+  affiliateId        String
+  amount             Decimal             @db.Decimal(12, 2)
+  bankName           String
+  rib                String
+  status             PayoutStatus        @default(PENDING)
+  rejectionReason    String?
+  bankReference      String?
+  proofObjectKey     String?
+  proofUrl           String?
+  reviewedById       String?
+  reviewedAt         DateTime?
+  paidAt             DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  affiliate          AffiliateProfile    @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  walletTransactions WalletTransaction[]
+
+  @@index([affiliateId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model ConfirmatorPayoutRequest {
+  id              String       @id @default(cuid())
+  reference       String       @unique
+  agentId         String
+  amount          Decimal      @db.Decimal(12, 2)
+  bankName        String
+  rib             String
+  status          PayoutStatus @default(PENDING)
+  rejectionReason String?
+  bankReference   String?
+  proofObjectKey  String?
+  proofUrl        String?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  paidAt          DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  agent           User         @relation("ConfirmatorPayoutAgent", fields: [agentId], references: [id], onDelete: Restrict)
+  reviewedBy      User?        @relation("ConfirmatorPayoutReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([agentId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model Ticket {
+  id           String           @id @default(cuid())
+  code         String           @unique
+  type         TicketType       @default(SUPPORT)
+  status       TicketStatus     @default(OPEN)
+  subject      String
+  affiliateId  String
+  createdById  String
+  assignedToId String?
+  orderId      String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  affiliate    AffiliateProfile @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  createdBy    User             @relation("TicketCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignedTo   User?            @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  order        Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  messages     TicketMessage[]
+
+  @@index([affiliateId, status, createdAt])
+  @@index([assignedToId, status])
+  @@index([orderId])
+}
+
+model TicketMessage {
+  id                  String   @id @default(cuid())
+  ticketId            String
+  authorId            String
+  message             String   @db.Text
+  attachmentObjectKey String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  ticket              Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author              User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  titleKey  String
+  bodyKey   String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  titleFr     String
+  titleAr     String
+  bodyFr      String   @db.Text
+  bodyAr      String   @db.Text
+  startsAt    DateTime
+  endsAt      DateTime
+  published   Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   User?    @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([published, startsAt, endsAt])
+  @@index([createdById])
+}
+
+model Conversation {
+  id            String                     @id @default(cuid())
+  subject       String?
+  createdById   String
+  lastMessageAt DateTime                   @default(now())
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+  createdBy     User                       @relation("ConversationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  participants  ConversationParticipant[]
+  messages      ChatMessage[]
+
+  @@index([lastMessageAt])
+  @@index([createdById])
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  lastReadAt     DateTime?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId, lastReadAt])
+}
+
+model ChatMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  authorId       String
+  body           String       @db.Text
+  imageObjectKey String?
+  imageUrl       String?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author         User         @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([conversationId, createdAt])
+  @@index([authorId])
+}
+
+model SupportAgent {
+  id         String             @id @default(cuid())
+  userId     String             @unique
+  phone      String
+  whatsapp   String
+  active     Boolean            @default(true)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  user       User               @relation("SupportAgentUser", fields: [userId], references: [id], onDelete: Cascade)
+  affiliates AffiliateProfile[]
+
+  @@index([active])
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Counter {
+  key       String   @id
+  value     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuthRateLimit {
+  key          String    @id
+  attempts     Int       @default(0)
+  windowStart  DateTime  @default(now())
+  blockedUntil DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([blockedUntil])
+  @@index([updatedAt])
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  actorId    String?
+  action     AuditAction
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  actor      User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model ImportJob {
+  id              String        @id @default(cuid())
+  type            ImportJobType
+  status          JobStatus     @default(QUEUED)
+  createdById     String
+  sourceObjectKey String?
+  resultObjectKey String?
+  progress        Int           @default(0)
+  totalRows       Int?
+  processedRows   Int           @default(0)
+  skippedRows     Int           @default(0)
+  error           String?       @db.Text
+  attempts        Int           @default(0)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  createdBy       User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([createdById, createdAt])
+}
