@@ -22,9 +22,9 @@ export default async function ProductsPage({
   const where: Prisma.ProductWhereInput = { published: true };
   if (query.q?.trim())
     where.OR = [
-      { nameFr: { contains: query.q.trim(), mode: "insensitive" } },
-      { nameAr: { contains: query.q.trim(), mode: "insensitive" } },
-      { code: { contains: query.q.trim(), mode: "insensitive" } },
+      { nameFr: { contains: query.q.trim() } },
+      { nameAr: { contains: query.q.trim() } },
+      { code: { contains: query.q.trim() } },
     ];
   if (query.category) where.category = { slug: query.category };
   const orderBy: Prisma.ProductOrderByWithRelationInput =

@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@prisma/client";
 import { hash } from "argon2";
 
@@ -10,7 +10,7 @@ import { syncImportedCities } from "./cities";
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is required");
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString }),
+  adapter: new PrismaMariaDb(connectionString),
 });
 
 const demoPassword = "DemoTijara2026!";

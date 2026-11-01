@@ -1218,7 +1218,7 @@ export async function addProductVariantAction(formData: FormData) {
   const duplicate = await prisma.productVariant.findFirst({
     where: {
       productId: parsed.data.productId,
-      size: { equals: parsed.data.size, mode: "insensitive" },
+      size: { equals: parsed.data.size },
       color: parsed.data.color || null,
     },
     select: { id: true },

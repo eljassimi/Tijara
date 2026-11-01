@@ -1,19 +1,29 @@
 services:
-  postgres:
-    image: postgres:17-alpine
+  mysql:
+    image: mysql:8.4
     environment:
-      POSTGRES_DB: tijara
-      POSTGRES_USER: tijara
-      POSTGRES_PASSWORD: tijara
+      MYSQL_DATABASE: tijara
+      MYSQL_USER: tijara
+      MYSQL_PASSWORD: tijara
+      MYSQL_ROOT_PASSWORD: tijara
     ports:
-      - "5434:5432"
+      - "3307:3306"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - mysql-data:/var/lib/mysql
+    command:
+      [
+        "--character-set-server=utf8mb4",
+        "--collation-server=utf8mb4_unicode_ci",
+      ]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tijara -d tijara"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -ptijara --silent",
+        ]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
   redis:
     image: redis:7-alpine
@@ -41,6 +51,6 @@ services:
       - "8025:8025"
 
 volumes:
-  postgres-data:
+  mysql-data:
   redis-data:
   minio-data:

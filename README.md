@@ -39,7 +39,7 @@ The catalog currently contains six records whose names clearly include “Démo�
 
 The operational MVP includes catalog publishing, cart checkout, order confirmation and delivery state machines, invoicing, commission credits, payout requests, staff permissions, tickets, notifications, PDF invoices, Excel exports, password recovery, and FR/AR dashboards.
 
-PostgreSQL is exposed locally on port `5434` to avoid collisions with a default local installation. Redis, MinIO, and Mailpit retain their standard ports.
+MySQL is exposed locally on port `3307` to avoid collisions with a default local installation. Redis, MinIO, and Mailpit retain their standard ports.
 
 ## Quality checks
 

@@ -63,11 +63,11 @@ export default async function AdminOrdersPage({
   if (query.q?.trim()) {
     const q = query.q.trim();
     where.OR = [
-      { code: { contains: q, mode: "insensitive" } },
+      { code: { contains: q } },
       { phone: { contains: q } },
-      { customerName: { contains: q, mode: "insensitive" } },
-      { parcelCode: { contains: q, mode: "insensitive" } },
-      { affiliate: { user: { name: { contains: q, mode: "insensitive" } } } },
+      { customerName: { contains: q } },
+      { parcelCode: { contains: q } },
+      { affiliate: { user: { name: { contains: q } } } },
     ];
   }
   if (confirmationStatuses.includes(query.confirmation as never))

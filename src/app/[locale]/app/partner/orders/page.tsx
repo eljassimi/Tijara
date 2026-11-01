@@ -61,9 +61,9 @@ export default async function OrdersPage({
   const where: Prisma.OrderWhereInput = { affiliateId };
   if (query.q?.trim())
     where.OR = [
-      { code: { contains: query.q.trim(), mode: "insensitive" } },
+      { code: { contains: query.q.trim() } },
       { phone: { contains: query.q.trim() } },
-      { customerName: { contains: query.q.trim(), mode: "insensitive" } },
+      { customerName: { contains: query.q.trim() } },
     ];
   if (
     confirmationStatuses.includes(

@@ -1,8 +1,8 @@
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@prisma/client";
 
 /** Bump after schema changes so Turbopack/dev does not keep a stale client. */
-const PRISMA_CLIENT_GENERATION = "confirmator-payouts-v1";
+const PRISMA_CLIENT_GENERATION = "mysql-v1";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
@@ -12,7 +12,9 @@ const globalForPrisma = globalThis as unknown as {
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not configured");
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  return new PrismaClient({
+    adapter: new PrismaMariaDb(connectionString),
+  });
 }
 
 function getPrismaClient() {

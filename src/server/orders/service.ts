@@ -64,8 +64,8 @@ async function resolveCity(
       ...scope,
       OR: [
         { slug },
-        { nameFr: { equals: input, mode: "insensitive" } },
-        { nameAr: { equals: input, mode: "insensitive" } },
+        { nameFr: { equals: input } },
+        { nameAr: { equals: input } },
       ],
     },
   });
@@ -675,7 +675,7 @@ export async function markOrderSentToDeliveryCompany(
         where: {
           id: { not: order.id },
           courierId: company.id,
-          parcelCode: { equals: options.parcelCode, mode: "insensitive" },
+          parcelCode: { equals: options.parcelCode },
         },
         select: { code: true },
       });

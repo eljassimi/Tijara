@@ -78,16 +78,16 @@ export default async function LogisticsPage({
   const searchClause: Prisma.OrderWhereInput | undefined = search
     ? {
         OR: [
-          { code: { contains: search, mode: "insensitive" } },
-          { phone: { contains: search, mode: "insensitive" } },
-          { customerName: { contains: search, mode: "insensitive" } },
-          { address: { contains: search, mode: "insensitive" } },
-          { parcelCode: { contains: search, mode: "insensitive" } },
+          { code: { contains: search } },
+          { phone: { contains: search } },
+          { customerName: { contains: search } },
+          { address: { contains: search } },
+          { parcelCode: { contains: search } },
           {
             city: {
               OR: [
-                { nameFr: { contains: search, mode: "insensitive" } },
-                { nameAr: { contains: search, mode: "insensitive" } },
+                { nameFr: { contains: search } },
+                { nameAr: { contains: search } },
               ],
             },
           },

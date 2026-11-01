@@ -13,5 +13,6 @@ test-results/
 uploads/
 minio-data/
 postgres-data/
+mysql-data/
 redis-data/
 .data/
