@@ -86,6 +86,9 @@ importers:
       pg:
         specifier: ^8.23.1
         version: 8.23.1
+      prisma:
+        specifier: ^7.10.1
+        version: 7.10.1(@types/node@26.6.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@5.9.3)
       react:
         specifier: latest
         version: 19.3.1
@@ -144,9 +147,6 @@ importers:
       prettier:
         specifier: latest
         version: 3.9.10
-      prisma:
-        specifier: ^7.10.1
-        version: 7.10.1(@types/node@26.6.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@5.9.3)
       tailwindcss:
         specifier: latest
         version: 4.3.3
