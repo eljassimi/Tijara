@@ -36,6 +36,10 @@ if (
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
+    // Hostinger (and similar shared hosts) have low process/thread caps.
+    // Default CPU detection can spawn 50+ workers and abort the build.
+    cpus: 1,
+    workerThreads: false,
     serverActions: {
       bodySizeLimit: "42mb",
     },
