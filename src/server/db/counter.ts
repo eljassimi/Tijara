@@ -14,5 +14,8 @@ export async function lockAffiliate(
   tx: Prisma.TransactionClient,
   affiliateId: string,
 ) {
-  await tx.$queryRaw`SELECT 1::int AS locked FROM pg_advisory_xact_lock(hashtext(${affiliateId}))`;
+  // MySQL-compatible row lock (replaces Postgres pg_advisory_xact_lock).
+  await tx.$queryRaw`
+    SELECT id FROM AffiliateProfile WHERE id = ${affiliateId} FOR UPDATE
+  `;
 }

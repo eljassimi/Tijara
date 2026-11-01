@@ -6,7 +6,7 @@
   "packageManager": "pnpm@9.12.3",
   "scripts": {
     "dev": "TZ=UTC next dev --turbopack",
-    "build": "prisma generate && prisma migrate deploy && RAYON_NUM_THREADS=1 UV_THREADPOOL_SIZE=2 TZ=UTC next build",
+    "build": "prisma generate && prisma migrate deploy && tsx scripts/ensure-admin.ts && RAYON_NUM_THREADS=1 UV_THREADPOOL_SIZE=2 TZ=UTC next build",
     "start": "TZ=UTC next start",
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
@@ -16,6 +16,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "TZ=UTC tsx prisma/seed.ts",
+    "admin:ensure": "TZ=UTC tsx scripts/ensure-admin.ts",
     "catalog:sync": "node --import tsx prisma/sync-catalog.ts",
     "cities:sync": "node --import tsx prisma/sync-cities.ts",
     "format": "prettier --write .",

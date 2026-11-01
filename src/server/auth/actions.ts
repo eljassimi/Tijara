@@ -125,7 +125,10 @@ export async function signupAction(formData: FormData) {
   ) {
     redirect(`/${locale}/signup?status=exists`);
   }
-  const passwordHash = await hash(parsed.data.password);
+  const passwordHash = await hash(parsed.data.password, {
+    memoryCost: 19_456,
+    timeCost: 2,
+  });
   await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
@@ -276,7 +279,9 @@ export async function resetPasswordAction(formData: FormData) {
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: record.userId },
-      data: { passwordHash: await hash(password) },
+      data: {
+        passwordHash: await hash(password, { memoryCost: 19_456, timeCost: 2 }),
+      },
     });
     await tx.passwordResetToken.update({
       where: { tokenHash },
