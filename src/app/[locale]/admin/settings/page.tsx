@@ -47,30 +47,50 @@ export default async function AdminSettingsPage({
     }),
   ]);
   const isSuperAdmin = user.role === "SUPER_ADMIN";
-  const isFinance = user.role === "FINANCE" || isSuperAdmin;
-  const adminLinks = [
-    ...(isSuperAdmin
-      ? [
-          {
-            href: "/admin/confirmation/dashboard" as const,
-            label: adminT("confirmatorDashboardAdmin"),
-          },
-          { href: "/admin/team" as const, label: adminT("team") },
-          { href: "/admin/couriers" as const, label: adminT("couriers") },
-          { href: "/admin/content" as const, label: adminT("content") },
-          { href: "/admin/audit" as const, label: adminT("audit") },
-          { href: "/admin/jobs" as const, label: adminT("jobs") },
-        ]
-      : []),
-    ...(isFinance
-      ? [
-          {
-            href: "/admin/confirmator-payouts" as const,
-            label: adminT("confirmatorPayouts"),
-          },
-        ]
-      : []),
-  ];
+  const adminLinks = isSuperAdmin
+    ? [
+        {
+          href: "/admin/confirmation/dashboard" as const,
+          label: adminT("confirmatorDashboardAdmin"),
+          body:
+            locale === "ar"
+              ? "أداء فريق التأكيد والأرباح."
+              : "Performance et gains de l’équipe confirmation.",
+        },
+        {
+          href: "/admin/couriers" as const,
+          label: adminT("couriers"),
+          body:
+            locale === "ar"
+              ? "إدارة شركات التوصيل والتكامل."
+              : "Gérer les sociétés de livraison et leurs intégrations.",
+        },
+        {
+          href: "/admin/content" as const,
+          label: adminT("content"),
+          body:
+            locale === "ar"
+              ? "نشر إعلانات للوحة الشركاء."
+              : "Publier des annonces pour le tableau partenaire.",
+        },
+        {
+          href: "/admin/audit" as const,
+          label: adminT("audit"),
+          body:
+            locale === "ar"
+              ? "تتبع التغييرات الحساسة."
+              : "Suivre les actions sensibles sur la plateforme.",
+        },
+        {
+          href: "/admin/jobs" as const,
+          label: adminT("jobs"),
+          body:
+            locale === "ar"
+              ? "مراقبة المهام الخلفية."
+              : "Surveiller les tâches en arrière-plan.",
+        },
+      ]
+    : [];
   const setting = (key: string, fallback: string | number) =>
     String(values.find((item) => item.key === key)?.value ?? fallback);
 
@@ -160,10 +180,11 @@ export default async function AdminSettingsPage({
             <h2>{adminT("settingsHub")}</h2>
             <p>{adminT("settingsHubBody")}</p>
           </div>
-          <div className="settings-hub__links">
+          <div className="settings-hub__grid">
             {adminLinks.map((item) => (
-              <Link key={item.href} className="settings-hub__link" href={item.href}>
-                {item.label}
+              <Link key={item.href} className="settings-hub__card" href={item.href}>
+                <strong>{item.label}</strong>
+                <span>{item.body}</span>
               </Link>
             ))}
           </div>

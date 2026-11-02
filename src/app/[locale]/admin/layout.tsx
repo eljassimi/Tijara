@@ -1,5 +1,6 @@
 import {
   BadgeDollarSign,
+  Banknote,
   Boxes,
   ClipboardList,
   Gauge,
@@ -9,6 +10,7 @@ import {
   PhoneCall,
   Settings,
   Truck,
+  UserRoundCog,
   Users,
   WalletCards,
 } from "lucide-react";
@@ -44,8 +46,7 @@ export default async function AdminLayout({
     unreadChatMessageCount(user.id),
   ]);
 
-  // Keep the sidebar short: day-to-day ops only.
-  // Team, couriers, announcements, payouts, audit, jobs live under Settings.
+  // Day-to-day ops in the sidebar. Secondary tools stay under Settings.
   const nav: Array<ShellItem & { roles: readonly AppRole[] }> = [
     {
       label: t("overview"),
@@ -101,10 +102,22 @@ export default async function AdminLayout({
       roles: ["CONFIRMATION_AGENT"],
     },
     {
+      label: t("confirmatorPayouts"),
+      href: "/admin/confirmator-payouts",
+      icon: Banknote,
+      roles: ["SUPER_ADMIN", "FINANCE"],
+    },
+    {
       label: t("finance"),
       href: "/admin/finance",
       icon: BadgeDollarSign,
       roles: ["SUPER_ADMIN", "FINANCE"],
+    },
+    {
+      label: t("team"),
+      href: "/admin/team",
+      icon: UserRoundCog,
+      roles: ["SUPER_ADMIN"],
     },
     {
       label: t("support"),
