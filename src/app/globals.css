@@ -5743,8 +5743,6 @@ a.announcement-banner:hover {
 }
 .chat-thread-item {
   position: relative;
-}
-.chat-thread-item button {
   width: 100%;
   display: grid;
   grid-template-columns: 36px 1fr auto;
@@ -5759,12 +5757,12 @@ a.announcement-banner:hover {
   cursor: pointer;
   font: inherit;
 }
-.chat-thread-item.is-active button,
-.chat-thread-item button:hover {
+.chat-thread-item.is-active,
+.chat-thread-item:hover {
   border-color: var(--clay);
   background: color-mix(in srgb, var(--sand) 55%, white);
 }
-.chat-thread-item.is-unread button {
+.chat-thread-item.is-unread {
   background: color-mix(in srgb, var(--majorelle) 6%, white);
 }
 .chat-thread-item__avatar {

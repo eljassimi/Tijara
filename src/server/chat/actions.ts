@@ -36,25 +36,28 @@ export async function startConversationAction(formData: FormData) {
   const area = chatAreaForRole(user.role);
   const parsed = z
     .object({
-      peerId: z.string().cuid(),
+      peerId: z.string().trim().min(1),
       subject: z.string().trim().max(160).optional().or(z.literal("")),
     })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success)
     redirect(chatPath(locale, area, { status: "invalid" }));
+
+  let conversationId: string;
   try {
     const conversation = await getOrCreateDirectConversation(
       { id: user.id, role: user.role },
       parsed.data.peerId,
       parsed.data.subject || null,
     );
-    revalidatePath(`/${locale}/${area}/chat`);
-    redirect(
-      chatPath(locale, area, { conversationId: conversation.id }),
-    );
+    conversationId = conversation.id;
   } catch {
+    // Do not wrap redirect() in try/catch — Next.js redirects throw.
     redirect(chatPath(locale, area, { status: "invalid" }));
   }
+
+  revalidatePath(`/${locale}/${area}/chat`);
+  redirect(chatPath(locale, area, { conversationId }));
 }
 
 export async function sendChatMessageAction(formData: FormData) {
@@ -65,7 +68,7 @@ export async function sendChatMessageAction(formData: FormData) {
     .split("?")[0]
     .trim();
   const body = String(formData.get("message") ?? "");
-  if (!z.string().cuid().safeParse(conversationId).success)
+  if (!conversationId)
     redirect(chatPath(locale, area, { status: "invalid" }));
 
   let imageObjectKey: string | null = null;
@@ -123,7 +126,7 @@ export async function openConversationAction(formData: FormData) {
   const conversationId = String(formData.get("conversationId") ?? "")
     .split("?")[0]
     .trim();
-  if (!z.string().cuid().safeParse(conversationId).success)
+  if (!conversationId)
     redirect(chatPath(locale, area, { status: "invalid" }));
   await markConversationRead(user.id, conversationId);
   revalidatePath(`/${locale}/${area}/chat`);

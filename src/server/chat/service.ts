@@ -10,10 +10,14 @@ export async function listChatPeers(actorId: string, actorRole: Role | string) {
   const roles = (
     await import("./access")
   ).allowedChatPeerRoles(actorRole);
+  const includePending =
+    actorRole === "SUPER_ADMIN" || actorRole === "SUPPORT";
   return prisma.user.findMany({
     where: {
       id: { not: actorId },
-      status: "ACTIVE",
+      status: includePending
+        ? { in: ["ACTIVE", "PENDING"] }
+        : "ACTIVE",
       role: { in: roles },
     },
     orderBy: [{ role: "asc" }, { name: "asc" }],
@@ -21,6 +25,7 @@ export async function listChatPeers(actorId: string, actorRole: Role | string) {
       id: true,
       name: true,
       role: true,
+      status: true,
       image: true,
       email: true,
     },
@@ -138,7 +143,15 @@ export async function getOrCreateDirectConversation(
 ) {
   if (peerId === actor.id) throw new Error("Cannot chat with yourself");
   const peer = await prisma.user.findFirst({
-    where: { id: peerId, status: "ACTIVE" },
+    where: {
+      id: peerId,
+      status: {
+        in:
+          actor.role === "SUPER_ADMIN" || actor.role === "SUPPORT"
+            ? ["ACTIVE", "PENDING"]
+            : ["ACTIVE"],
+      },
+    },
     select: { id: true, role: true, name: true },
   });
   if (!peer || !canChatWith(actor.role, peer.role))

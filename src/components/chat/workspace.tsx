@@ -8,15 +8,14 @@ import {
   WorkflowHeader,
 } from "@/components/workflow-ui";
 import { CustomSelect } from "@/components/ui/custom-select";
-import {
-  openConversationAction,
-  startConversationAction,
-} from "@/server/chat/actions";
+import { Link } from "@/i18n/navigation";
+import { startConversationAction } from "@/server/chat/actions";
 
 type Peer = {
   id: string;
   name: string;
   role: string;
+  status?: string;
 };
 
 type ConversationListItem = {
@@ -66,6 +65,7 @@ function roleLabel(role: string, locale: "fr" | "ar") {
 
 export async function ChatWorkspace({
   locale,
+  area,
   userId,
   labels,
   peers,
@@ -137,7 +137,13 @@ export async function ChatWorkspace({
                 required
                 options={peers.map((peer) => ({
                   value: peer.id,
-                  label: `${peer.name} · ${roleLabel(peer.role, locale)}`,
+                  label: `${peer.name} · ${roleLabel(peer.role, locale)}${
+                    peer.status === "PENDING"
+                      ? locale === "ar"
+                        ? " · قيد الانتظار"
+                        : " · En attente"
+                      : ""
+                  }`,
                 }))}
               />
             </div>
@@ -155,35 +161,30 @@ export async function ChatWorkspace({
                   conversation.subject ||
                   labels.title;
                 return (
-                  <form
+                  <Link
                     key={conversation.id}
-                    action={openConversationAction}
+                    href={{
+                      pathname: `/${area}/chat`,
+                      query: { c: conversation.id },
+                    }}
                     className={`chat-thread-item${conversation.id === active?.id ? " is-active" : ""}${conversation.unread ? " is-unread" : ""}`}
                   >
-                    <input type="hidden" name="locale" value={locale} />
-                    <input
-                      type="hidden"
-                      name="conversationId"
-                      value={conversation.id}
-                    />
-                    <button type="submit">
-                      <span className="chat-thread-item__avatar">
-                        <UserRound size={16} />
-                      </span>
-                      <span className="chat-thread-item__meta">
-                        <strong>{title}</strong>
-                        <small>
-                          {conversation.lastMessage?.body ||
-                            (conversation.lastMessage?.imageUrl ? "📷" : "—")}
-                        </small>
-                      </span>
-                      {conversation.unread ? (
-                        <StatusPill>
-                          {locale === "ar" ? "جديد" : "Nouveau"}
-                        </StatusPill>
-                      ) : null}
-                    </button>
-                  </form>
+                    <span className="chat-thread-item__avatar">
+                      <UserRound size={16} />
+                    </span>
+                    <span className="chat-thread-item__meta">
+                      <strong>{title}</strong>
+                      <small>
+                        {conversation.lastMessage?.body ||
+                          (conversation.lastMessage?.imageUrl ? "📷" : "—")}
+                      </small>
+                    </span>
+                    {conversation.unread ? (
+                      <StatusPill>
+                        {locale === "ar" ? "جديد" : "Nouveau"}
+                      </StatusPill>
+                    ) : null}
+                  </Link>
                 );
               })
             ) : (
