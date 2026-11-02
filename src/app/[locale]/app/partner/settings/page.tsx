@@ -137,7 +137,6 @@ export default async function SettingsPage({
             <input
               name="phone"
               defaultValue={user.phone ?? ""}
-              placeholder="06XXXXXXXX"
               required
             />
           </label>
@@ -175,11 +174,6 @@ export default async function SettingsPage({
               inputMode="numeric"
               minLength={24}
               maxLength={29}
-              placeholder={
-                affiliate.rib
-                  ? `•••• •••• •••• •••• •••• ${affiliate.rib.slice(-4)}`
-                  : "24 chiffres"
-              }
             />
             <small>
               {locale === "ar"

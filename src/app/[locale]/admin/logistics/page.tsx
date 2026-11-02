@@ -371,11 +371,6 @@ export default async function LogisticsPage({
           <input
             name="q"
             defaultValue={query.q}
-            placeholder={
-              locale === "ar"
-                ? "الرمز، الهاتف، الزبون أو المدينة"
-                : "Code, téléphone, client ou ville"
-            }
           />
         </label>
         <label>
@@ -385,7 +380,6 @@ export default async function LogisticsPage({
             locale={locale}
             label={locale === "ar" ? "حالة التوصيل" : "Statut de livraison"}
             defaultValue={deliveryFilter ?? ""}
-            placeholder={locale === "ar" ? "الكل" : "Tous"}
             options={statusOptions}
           />
         </label>
@@ -499,9 +493,6 @@ export default async function LogisticsPage({
                       label={t("courier")}
                       locale={locale}
                       defaultValue={defaultCourierId}
-                      placeholder={
-                        locale === "ar" ? "اختر الشركة" : "Choisir la société"
-                      }
                       options={companies.map((company) => ({
                         value: company.id,
                         label: company.name,
@@ -513,20 +504,12 @@ export default async function LogisticsPage({
                     <span>{t("parcelCode")}</span>
                     <input
                       name="parcelCode"
-                      placeholder={
-                        locale === "ar"
-                          ? "اختياري الآن"
-                          : "Facultatif pour le moment"
-                      }
                     />
                   </label>
                   <label>
                     <span>{t("notes")}</span>
                     <input
                       name="note"
-                      placeholder={
-                        locale === "ar" ? "ملاحظة داخلية" : "Note interne"
-                      }
                     />
                   </label>
                   <button
@@ -647,11 +630,6 @@ export default async function LogisticsPage({
                         name="to"
                         label={t("deliveryStatus")}
                         locale={locale}
-                        placeholder={
-                          locale === "ar"
-                            ? "اختر الحالة الجديدة"
-                            : "Choisir le nouvel état"
-                        }
                         options={transitions.map((item) => ({
                           value: item,
                           label: statusLabel(item, locale),
@@ -664,11 +642,6 @@ export default async function LogisticsPage({
                       <span>{t("notes")}</span>
                       <input
                         name="note"
-                        placeholder={
-                          locale === "ar"
-                            ? "ملاحظة اختيارية"
-                            : "Note facultative"
-                        }
                       />
                     </label>
                     <ConfirmSubmitButton

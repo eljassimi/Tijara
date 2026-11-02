@@ -146,7 +146,6 @@ export default async function AdminOrderDetailPage({
               name="to"
               locale={locale}
               label={locale === "ar" ? "الحالة الجديدة" : "Nouvel état"}
-              placeholder={locale === "ar" ? "اختر الحالة" : "Choisir l’état"}
               options={transitions.map((transition) => ({
                 value: transition,
                 label: statusLabel(transition, locale),
@@ -155,11 +154,6 @@ export default async function AdminOrderDetailPage({
             />
             <input
               name="note"
-              placeholder={
-                locale === "ar"
-                  ? "ملاحظة — السبب إلزامي للإرجاع أو الرفض"
-                  : "Note — motif obligatoire pour retour ou refus"
-              }
             />
             <ConfirmSubmitButton
               locale={locale}

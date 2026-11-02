@@ -77,9 +77,6 @@ export default async function AffiliatesPage({
                     name="reason"
                     required
                     maxLength={500}
-                    placeholder={
-                      locale === "ar" ? "سبب الإيقاف" : "Motif de suspension"
-                    }
                   />
                 ) : null}
                 <ConfirmSubmitButton

@@ -1288,13 +1288,13 @@ summary:focus-visible {
 }
 .app-nav {
   display: grid;
-  gap: 3px;
+  gap: 6px;
 }
 .app-nav a {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 45px;
+  min-height: 46px;
   padding-inline: 12px;
   border-radius: 12px;
   color: rgb(255 255 255 / 0.62);
@@ -4116,6 +4116,46 @@ a.announcement-banner:hover {
 .status-chips a.is-active {
   border-color: var(--majorelle);
   background: color-mix(in srgb, var(--majorelle) 10%, white);
+  color: var(--majorelle);
+}
+.settings-hub {
+  display: grid;
+  gap: 14px;
+  margin-block-end: 22px;
+  padding: 18px 18px 16px;
+  border: 1px solid var(--clay);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--sand));
+}
+.settings-hub__intro h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 750;
+}
+.settings-hub__intro p {
+  margin: 6px 0 0;
+  color: var(--muted-ink);
+  font-size: 0.92rem;
+}
+.settings-hub__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.settings-hub__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--clay);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+.settings-hub__link:hover {
+  border-color: color-mix(in srgb, var(--majorelle) 35%, var(--clay));
   color: var(--majorelle);
 }
 .settings-tabs {

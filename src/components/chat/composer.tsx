@@ -14,7 +14,7 @@ export function ChatComposer({
   locale: "fr" | "ar";
   conversationId: string;
   labels: {
-    placeholder: string;
+    placeholder?: string;
     send: string;
     emoji: string;
     attach: string;
@@ -85,7 +85,6 @@ export function ChatComposer({
           rows={1}
           value={message}
           onChange={(event) => setMessage(event.target.value)}
-          placeholder={labels.placeholder}
         />
         <button
           className="button button--primary button--compact chat-composer__send"

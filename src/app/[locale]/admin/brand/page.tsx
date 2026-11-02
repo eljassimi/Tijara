@@ -76,7 +76,7 @@ export default async function BrandPage() {
         <h2>{t("forms")}</h2>
         <label className="field brand-field">
           <span>{t("fieldLabel")}</span>
-          <input placeholder={t("fieldPlaceholder")} />
+          <input />
           <small>{t("fieldHelp")}</small>
         </label>
       </section>

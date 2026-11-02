@@ -134,7 +134,6 @@ export function NewOrderForm({
           type="tel"
           inputMode="tel"
           defaultValue={state.values.phone}
-          placeholder="06XXXXXXXX"
           aria-invalid={Boolean(error("phone"))}
           required
         />
@@ -149,7 +148,6 @@ export function NewOrderForm({
           listId="new-order-cities"
           cities={cities}
           defaultValue={state.values.city}
-          placeholder={labels.chooseCity}
           invalid={Boolean(error("city"))}
         />
         {error("city") && (
@@ -162,7 +160,6 @@ export function NewOrderForm({
           type="search"
           value={productQuery}
           onChange={(event) => setProductQuery(event.target.value)}
-          placeholder={labels.searchProduct}
           aria-label={labels.searchProduct}
           aria-controls="new-order-product-select"
           spellCheck={false}
@@ -177,7 +174,6 @@ export function NewOrderForm({
             value: item.id,
             label: `${item.label} · ${formatMoney(item.salePrice, locale)}`,
           }))}
-          placeholder={labels.chooseProduct}
           emptyMessage={labels.noProductsFound}
           defaultValue={state.values.variantId}
           onValueChange={setVariantId}

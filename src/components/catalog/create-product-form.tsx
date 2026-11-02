@@ -114,7 +114,6 @@ export function CreateProductForm({
           name="slug"
           required
           minLength={1}
-          placeholder="fc-barcelona-player-kit-26-27"
           defaultValue={state.values?.slug}
           {...errorProps("slug")}
         />
@@ -278,7 +277,6 @@ export function CreateProductForm({
         <input
           name="mediaDriveUrl"
           type="url"
-          placeholder="https://drive.google.com/drive/folders/…"
           defaultValue={state.values?.mediaDriveUrl}
           {...errorProps("mediaDriveUrl")}
         />
@@ -308,7 +306,6 @@ export function CreateProductForm({
           name="sizes"
           required
           maxLength={500}
-          placeholder="S, M, L, XL"
           defaultValue={state.values?.sizes}
           {...errorProps("sizes")}
         />

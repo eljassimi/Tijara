@@ -269,7 +269,6 @@ export function CustomSelect({
                 ref={searchRef}
                 type="search"
                 value={query}
-                placeholder={searchPlaceholder ?? copy.search}
                 aria-controls={listboxId}
                 aria-activedescendant={
                   activeIndex >= 0

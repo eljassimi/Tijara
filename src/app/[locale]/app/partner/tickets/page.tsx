@@ -125,7 +125,6 @@ export default async function TicketsPage({
             label={t("linkedOrder")}
             locale={locale}
             defaultValue={requestedOrder ?? ""}
-            placeholder="—"
             options={[
               { value: "", label: "—" },
               ...orders.map((order) => ({

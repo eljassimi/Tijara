@@ -123,7 +123,7 @@ export default async function CouriersPage({
           <span>
             {locale === "ar" ? "رابط API (لاحقاً)" : "URL de l’API (plus tard)"}
           </span>
-          <input name="apiBaseUrl" type="url" placeholder="https://" />
+          <input name="apiBaseUrl" type="url" />
         </label>
         <button
           className="button button--primary workflow-form__submit"
@@ -204,7 +204,6 @@ export default async function CouriersPage({
                     name="apiBaseUrl"
                     type="url"
                     defaultValue={company.apiBaseUrl ?? ""}
-                    placeholder="https://"
                   />
                 </label>
                 <label className="check-row delivery-company-card__active">

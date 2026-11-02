@@ -186,11 +186,6 @@ export default async function OrdersPage({
           <input
             name="q"
             defaultValue={query.q}
-            placeholder={
-              locale === "ar"
-                ? "الرمز، الهاتف أو الزبون"
-                : "Code, téléphone ou client"
-            }
           />
         </label>
         <input

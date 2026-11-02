@@ -350,11 +350,6 @@ export default async function ConfirmationPage({
           <input
             name="q"
             defaultValue={query.q}
-            placeholder={
-              locale === "ar"
-                ? "الرمز، الهاتف، الزبون أو المدينة"
-                : "Code, téléphone, client ou ville"
-            }
           />
         </label>
         <label>
@@ -364,7 +359,6 @@ export default async function ConfirmationPage({
             locale={locale}
             label={locale === "ar" ? "حالة التأكيد" : "Statut de confirmation"}
             defaultValue={confirmationFilter ?? ""}
-            placeholder={locale === "ar" ? "الكل" : "Tous"}
             options={statusOptions}
           />
         </label>
@@ -516,11 +510,6 @@ export default async function ConfirmationPage({
                           name="to"
                           label={t("outcome")}
                           locale={locale}
-                          placeholder={
-                            locale === "ar"
-                              ? "اختر النتيجة"
-                              : "Choisir le résultat"
-                          }
                           options={confirmationTransitions[
                             order.confirmationStatus
                           ].map((outcome) => ({
@@ -534,11 +523,6 @@ export default async function ConfirmationPage({
                         <span>{t("notes")}</span>
                         <input
                           name="note"
-                          placeholder={
-                            locale === "ar"
-                              ? "ملاحظة اختيارية"
-                              : "Note facultative"
-                          }
                         />
                       </label>
                       <button

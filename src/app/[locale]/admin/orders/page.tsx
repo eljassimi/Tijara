@@ -129,11 +129,6 @@ export default async function AdminOrdersPage({
           <input
             name="q"
             defaultValue={query.q}
-            placeholder={
-              locale === "ar"
-                ? "الرمز، الهاتف، الزبون أو الشريك"
-                : "Code, téléphone, client ou affilié"
-            }
           />
         </label>
         <label>
@@ -143,7 +138,6 @@ export default async function AdminOrdersPage({
             locale={locale}
             label={locale === "ar" ? "حالة التأكيد" : "État de confirmation"}
             defaultValue={query.confirmation}
-            placeholder={locale === "ar" ? "الكل" : "Toutes"}
             options={confirmationOptions}
           />
         </label>
@@ -154,7 +148,6 @@ export default async function AdminOrdersPage({
             locale={locale}
             label={locale === "ar" ? "حالة التوصيل" : "État de livraison"}
             defaultValue={query.delivery}
-            placeholder={locale === "ar" ? "الكل" : "Toutes"}
             options={deliveryOptions}
           />
         </label>
@@ -165,7 +158,6 @@ export default async function AdminOrdersPage({
             locale={locale}
             label={locale === "ar" ? "الحالة المالية" : "État financier"}
             defaultValue={query.finance}
-            placeholder={locale === "ar" ? "الكل" : "Tous"}
             options={financeOptions}
           />
         </label>

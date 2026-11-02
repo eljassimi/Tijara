@@ -63,9 +63,6 @@ export default async function ProductsPage({
           <input
             name="q"
             defaultValue={query.q}
-            placeholder={
-              locale === "ar" ? "اسم أو رمز المنتج" : "Nom ou code produit"
-            }
           />
         </label>
         <div className="filter-field">
@@ -75,7 +72,6 @@ export default async function ProductsPage({
             label={locale === "ar" ? "الصنف" : "Catégorie"}
             locale={locale}
             defaultValue={query.category ?? ""}
-            placeholder={locale === "ar" ? "الكل" : "Toutes"}
             options={[
               { value: "", label: locale === "ar" ? "الكل" : "Toutes" },
               ...categories.map((item) => ({

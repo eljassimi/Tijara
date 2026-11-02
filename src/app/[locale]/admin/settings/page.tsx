@@ -31,8 +31,9 @@ export default async function AdminSettingsPage({
     "SUPPORT",
   ]);
   const canOps = sessionUserCan(user, "settings:manage");
-  const [t, values, profile] = await Promise.all([
+  const [t, adminT, values, profile] = await Promise.all([
     getTranslations("Workflow"),
+    getTranslations("Admin"),
     canOps ? prisma.setting.findMany() : Promise.resolve([]),
     prisma.user.findUniqueOrThrow({
       where: { id: user.id },
@@ -45,6 +46,31 @@ export default async function AdminSettingsPage({
       },
     }),
   ]);
+  const isSuperAdmin = user.role === "SUPER_ADMIN";
+  const isFinance = user.role === "FINANCE" || isSuperAdmin;
+  const adminLinks = [
+    ...(isSuperAdmin
+      ? [
+          {
+            href: "/admin/confirmation/dashboard" as const,
+            label: adminT("confirmatorDashboardAdmin"),
+          },
+          { href: "/admin/team" as const, label: adminT("team") },
+          { href: "/admin/couriers" as const, label: adminT("couriers") },
+          { href: "/admin/content" as const, label: adminT("content") },
+          { href: "/admin/audit" as const, label: adminT("audit") },
+          { href: "/admin/jobs" as const, label: adminT("jobs") },
+        ]
+      : []),
+    ...(isFinance
+      ? [
+          {
+            href: "/admin/confirmator-payouts" as const,
+            label: adminT("confirmatorPayouts"),
+          },
+        ]
+      : []),
+  ];
   const setting = (key: string, fallback: string | number) =>
     String(values.find((item) => item.key === key)?.value ?? fallback);
 
@@ -127,6 +153,22 @@ export default async function AdminSettingsPage({
               : "Les deux nouveaux mots de passe ne correspondent pas.",
         }}
       />
+
+      {adminLinks.length > 0 ? (
+        <section className="settings-hub">
+          <div className="settings-hub__intro">
+            <h2>{adminT("settingsHub")}</h2>
+            <p>{adminT("settingsHubBody")}</p>
+          </div>
+          <div className="settings-hub__links">
+            {adminLinks.map((item) => (
+              <Link key={item.href} className="settings-hub__link" href={item.href}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <nav className="settings-tabs">
         {canOps ? (
@@ -263,11 +305,6 @@ export default async function AdminSettingsPage({
               inputMode="numeric"
               minLength={24}
               maxLength={29}
-              placeholder={
-                profile.rib
-                  ? `•••• •••• •••• •••• •••• ${profile.rib.slice(-4)}`
-                  : "24 chiffres"
-              }
             />
             <small>
               {locale === "ar"
@@ -321,7 +358,6 @@ export default async function AdminSettingsPage({
             <input
               name="phone"
               defaultValue={profile.phone ?? ""}
-              placeholder="06XXXXXXXX"
             />
           </label>
           <button

@@ -174,7 +174,6 @@ export default async function EditProductPage({
           <input
             name="mediaDriveUrl"
             type="url"
-            placeholder="https://drive.google.com/drive/folders/…"
             defaultValue={product.mediaDriveUrl ?? ""}
           />
         </label>
@@ -281,11 +280,6 @@ export default async function EditProductPage({
                     name="reason"
                     minLength={3}
                     maxLength={500}
-                    placeholder={
-                      locale === "ar"
-                        ? "مثال: استلام مخزون"
-                        : "Ex. réception de stock"
-                    }
                     required
                   />
                 </label>

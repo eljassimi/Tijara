@@ -8,13 +8,11 @@ export function CitySearchInput({
   listId,
   cities,
   defaultValue,
-  placeholder,
   invalid,
 }: {
   listId: string;
   cities: CityOption[];
   defaultValue: string;
-  placeholder: string;
   invalid: boolean;
 }) {
   return (
@@ -25,7 +23,6 @@ export function CitySearchInput({
         list={listId}
         autoComplete="address-level2"
         defaultValue={defaultValue}
-        placeholder={placeholder}
         aria-invalid={invalid}
         spellCheck={false}
         required

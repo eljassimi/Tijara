@@ -1,21 +1,16 @@
 import {
   BadgeDollarSign,
-  Banknote,
   Boxes,
   ClipboardList,
   Gauge,
   Headphones,
-  History,
   LayoutDashboard,
-  Megaphone,
   MessageSquare,
   PhoneCall,
   Settings,
   Truck,
   Users,
-  UserRoundCog,
   WalletCards,
-  Workflow,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
@@ -48,12 +43,23 @@ export default async function AdminLayout({
     }),
     unreadChatMessageCount(user.id),
   ]);
+
+  // Keep the sidebar short: day-to-day ops only.
+  // Team, couriers, announcements, payouts, audit, jobs live under Settings.
   const nav: Array<ShellItem & { roles: readonly AppRole[] }> = [
     {
       label: t("overview"),
       href: "/admin",
       icon: Gauge,
       roles: ["SUPER_ADMIN", "FINANCE"],
+      mobilePrimary: true,
+    },
+    {
+      label: t("confirmatorDashboard"),
+      href: "/admin/confirmation/dashboard",
+      icon: LayoutDashboard,
+      roles: ["CONFIRMATION_AGENT"],
+      mobilePrimary: true,
     },
     {
       label: t("affiliates"),
@@ -66,30 +72,21 @@ export default async function AdminLayout({
       href: "/admin/catalog",
       icon: Boxes,
       roles: ["SUPER_ADMIN", "CATALOG_MANAGER"],
-    },
-    {
-      label: t("confirmatorDashboard"),
-      href: "/admin/confirmation/dashboard",
-      icon: LayoutDashboard,
-      roles: ["SUPER_ADMIN", "CONFIRMATION_AGENT"],
+      mobilePrimary: true,
     },
     {
       label: t("orders"),
       href: "/admin/orders",
       icon: ClipboardList,
       roles: ["SUPER_ADMIN", "CONFIRMATION_AGENT", "FINANCE", "SUPPORT"],
+      mobilePrimary: true,
     },
     {
       label: t("confirmation"),
       href: "/admin/confirmation",
       icon: PhoneCall,
       roles: ["SUPER_ADMIN", "CONFIRMATION_AGENT"],
-    },
-    {
-      label: t("confirmatorPayments"),
-      href: "/admin/confirmation/payments",
-      icon: WalletCards,
-      roles: ["CONFIRMATION_AGENT"],
+      mobilePrimary: true,
     },
     {
       label: t("logistics"),
@@ -98,22 +95,10 @@ export default async function AdminLayout({
       roles: ["SUPER_ADMIN", "CONFIRMATION_AGENT"],
     },
     {
-      label: t("confirmatorPayouts"),
-      href: "/admin/confirmator-payouts",
-      icon: Banknote,
-      roles: ["SUPER_ADMIN", "FINANCE"],
-    },
-    {
-      label: t("couriers"),
-      href: "/admin/couriers",
-      icon: Truck,
-      roles: ["SUPER_ADMIN"],
-    },
-    {
-      label: t("team"),
-      href: "/admin/team",
-      icon: UserRoundCog,
-      roles: ["SUPER_ADMIN"],
+      label: t("confirmatorPayments"),
+      href: "/admin/confirmation/payments",
+      icon: WalletCards,
+      roles: ["CONFIRMATION_AGENT"],
     },
     {
       label: t("finance"),
@@ -142,12 +127,6 @@ export default async function AdminLayout({
       ],
     },
     {
-      label: t("content"),
-      href: "/admin/content",
-      icon: Megaphone,
-      roles: ["SUPER_ADMIN", "SUPPORT"],
-    },
-    {
       label: t("settings"),
       href: "/admin/settings",
       icon: Settings,
@@ -158,18 +137,6 @@ export default async function AdminLayout({
         "FINANCE",
         "SUPPORT",
       ],
-    },
-    {
-      label: t("audit"),
-      href: "/admin/audit",
-      icon: History,
-      roles: ["SUPER_ADMIN"],
-    },
-    {
-      label: t("jobs"),
-      href: "/admin/jobs",
-      icon: Workflow,
-      roles: ["SUPER_ADMIN"],
     },
   ];
   const items = nav.filter((item) => item.roles.includes(user.role as AppRole));

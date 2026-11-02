@@ -126,9 +126,6 @@ export default async function FinancePage({
                       label={t("status")}
                       locale={locale}
                       defaultValue={payout.status === "APPROVED" ? "PAID" : ""}
-                      placeholder={
-                        locale === "ar" ? "اختر الإجراء" : "Choisir une action"
-                      }
                       options={[
                         ...(payout.status === "PENDING"
                           ? [
@@ -182,9 +179,6 @@ export default async function FinancePage({
                         </span>
                         <input
                           name="bankReference"
-                          placeholder={
-                            locale === "ar" ? "اختياري" : "Facultatif"
-                          }
                         />
                       </label>
                       <label>

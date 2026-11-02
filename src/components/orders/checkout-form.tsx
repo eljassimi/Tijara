@@ -142,7 +142,6 @@ export function CheckoutForm({
           type="tel"
           inputMode="tel"
           defaultValue={state.values.phone}
-          placeholder="06XXXXXXXX"
           aria-invalid={Boolean(state.fieldErrors.phone)}
           required
         />
@@ -157,7 +156,6 @@ export function CheckoutForm({
           listId="checkout-cities"
           cities={cities}
           defaultValue={state.values.city}
-          placeholder={labels.chooseCity}
           invalid={Boolean(state.fieldErrors.city)}
         />
         <small>{labels.cityHelp}</small>
