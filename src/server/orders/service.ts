@@ -59,6 +59,19 @@ async function resolveCity(
   const input = value.trim();
   const slug = citySlugFromName(input);
   const scope = options.createIfMissing ? {} : { active: true };
+  // Checkout selects submit the city id for an exact match.
+  const byId = await tx.city.findFirst({
+    where: { id: input, ...scope },
+  });
+  if (byId) {
+    if (options.createIfMissing && !byId.active) {
+      return tx.city.update({
+        where: { id: byId.id },
+        data: { active: true },
+      });
+    }
+    return byId;
+  }
   const exact = await tx.city.findFirst({
     where: {
       ...scope,

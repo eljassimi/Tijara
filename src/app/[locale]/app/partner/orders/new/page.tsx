@@ -4,6 +4,10 @@ import { NewOrderForm } from "@/components/orders/new-order-form";
 import { FormNotice, WorkflowHeader } from "@/components/workflow-ui";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/server/auth/session";
+import {
+  cityOptionsForLocale,
+  listDeliveryCitiesForCheckout,
+} from "@/server/cities/delivery-cities";
 import { cleanDemoLabel } from "@/lib/display-text";
 
 export default async function NewOrderPage({
@@ -26,10 +30,7 @@ export default async function NewOrderPage({
       include: { variants: { where: { active: true, stock: { gt: 0 } } } },
       orderBy: { publishedAt: "desc" },
     }),
-    prisma.city.findMany({
-      where: { active: true },
-      orderBy: [{ sortOrder: "asc" }, { nameFr: "asc" }],
-    }),
+    listDeliveryCitiesForCheckout(),
   ]);
   return (
     <main>
@@ -55,11 +56,7 @@ export default async function NewOrderPage({
       <NewOrderForm
         locale={locale}
         initialVariant={variant}
-        cities={cities.map((city) => ({
-          id: city.id,
-          name: locale === "ar" ? city.nameAr : city.nameFr,
-          value: city.nameFr,
-        }))}
+        cities={cityOptionsForLocale(cities, locale)}
         products={products.flatMap((product) => {
           const productName = cleanDemoLabel(
             locale === "ar" ? product.nameAr || product.nameFr : product.nameFr,

@@ -146,12 +146,18 @@ export function NewOrderForm({
         <CitySearchInput
           key={`city-${state.revision}`}
           listId="new-order-cities"
+          locale={locale}
           cities={cities}
           defaultValue={state.values.city}
-          invalid={Boolean(error("city"))}
+          invalid={Boolean(error("city")) || state.status === "unknown-city"}
+          placeholder={labels.chooseCity}
         />
-        {error("city") && (
-          <small className="field-error">{error("city")}</small>
+        {(error("city") || state.status === "unknown-city") && (
+          <small className="field-error">
+            {state.status === "unknown-city"
+              ? labels["unknown-city"]
+              : error("city")}
+          </small>
         )}
       </label>
       <div className="field">

@@ -154,12 +154,20 @@ export function CheckoutForm({
         <CitySearchInput
           key={`city-${state.revision}`}
           listId="checkout-cities"
+          locale={locale}
           cities={cities}
           defaultValue={state.values.city}
           invalid={Boolean(state.fieldErrors.city)}
+          placeholder={labels.chooseCity}
         />
         <small>{labels.cityHelp}</small>
-        <FieldError field="city" state={state} />
+        {(state.status === "unknown-city" || state.fieldErrors.city?.length) && (
+          <small className="field-error">
+            {state.status === "unknown-city"
+              ? labels["unknown-city"]
+              : labels.invalid}
+          </small>
+        )}
       </label>
       <label className="field workflow-form__span">
         <span>{labels.address}</span>

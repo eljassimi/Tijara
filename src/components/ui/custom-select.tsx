@@ -13,6 +13,8 @@ import {
 export type CustomSelectOption = {
   value: string;
   label: string;
+  /** Extra text matched by search (e.g. alternate language city names). */
+  keywords?: string;
   disabled?: boolean;
 };
 
@@ -94,7 +96,9 @@ export function CustomSelect({
     const terms = normalize(query).split(/\s+/).filter(Boolean);
     if (!terms.length) return options;
     return options.filter((option) => {
-      const candidate = normalize(option.label);
+      const candidate = normalize(
+        `${option.label} ${option.keywords ?? ""}`,
+      );
       return terms.every((term) => candidate.includes(term));
     });
   }, [options, query]);

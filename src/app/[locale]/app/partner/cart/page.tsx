@@ -5,6 +5,10 @@ import { FormNotice, WorkflowHeader } from "@/components/workflow-ui";
 import { CartOrderComposer } from "@/components/orders/cart-order-composer";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/server/auth/session";
+import {
+  cityOptionsForLocale,
+  listDeliveryCitiesForCheckout,
+} from "@/server/cities/delivery-cities";
 import { affiliateIdFor } from "@/server/orders/service";
 import { Link } from "@/i18n/navigation";
 import { cleanDemoLabel } from "@/lib/display-text";
@@ -36,10 +40,7 @@ export default async function CartPage({
         },
       },
     }),
-    prisma.city.findMany({
-      where: { active: true },
-      orderBy: [{ sortOrder: "asc" }, { nameFr: "asc" }],
-    }),
+    listDeliveryCitiesForCheckout(),
   ]);
   const items = cart?.items ?? [];
   return (
@@ -96,11 +97,7 @@ export default async function CartPage({
                 Number(item.product.salePrice),
             };
           })}
-          cities={cities.map((city) => ({
-            id: city.id,
-            name: locale === "ar" ? city.nameAr : city.nameFr,
-            value: city.nameFr,
-          }))}
+          cities={cityOptionsForLocale(cities, locale)}
           labels={{
             cart: t("cart"),
             instructions:
