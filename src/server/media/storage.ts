@@ -1,4 +1,4 @@
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import {
@@ -22,13 +22,41 @@ function safeKeyParts(key: string) {
   return parts;
 }
 
-function localObjectPath(key: string) {
-  const parts = safeKeyParts(key);
+function localRootCandidates() {
+  const roots: string[] = [];
+  const persist = process.env.MEDIA_PERSIST_ROOT?.trim();
   const override = process.env.MEDIA_LOCAL_ROOT?.trim();
-  // Keep the default root statically scoped so Turbopack does not trace the
-  // whole project. Override paths are ignored for filesystem tracing.
-  if (override) return join(/*turbopackIgnore: true*/ override, ...parts);
-  return join(process.cwd(), ".data", "uploads", ...parts);
+  // Prefer durable storage first (Hostinger deploys wipe hbuilds/current).
+  if (persist) roots.push(/*turbopackIgnore: true*/ persist);
+  if (override) roots.push(/*turbopackIgnore: true*/ override);
+  roots.push(join(process.cwd(), ".data", "uploads"));
+  // Hostinger layout: hbuilds/current/nodejs → hbuilds/media/uploads
+  roots.push(
+    /*turbopackIgnore: true*/ join(process.cwd(), "../../../media/uploads"),
+  );
+  return [...new Set(roots)];
+}
+
+function preferredLocalRoot() {
+  return localRootCandidates()[0]!;
+}
+
+function localObjectPath(key: string, root = preferredLocalRoot()) {
+  return join(/*turbopackIgnore: true*/ root, ...safeKeyParts(key));
+}
+
+async function resolveExistingLocalPath(key: string) {
+  const parts = safeKeyParts(key);
+  for (const root of localRootCandidates()) {
+    const path = join(/*turbopackIgnore: true*/ root, ...parts);
+    try {
+      await access(path);
+      return path;
+    } catch {
+      // try next root
+    }
+  }
+  return localObjectPath(key);
 }
 
 function contentTypeForKey(key: string) {
@@ -86,15 +114,19 @@ export async function uploadObject(key: string, file: File) {
 
 export async function deleteObject(key: string) {
   if (usesLocalStorage()) {
-    try {
-      await unlink(localObjectPath(key));
-    } catch (error) {
-      if (!(
-        error instanceof Error &&
-        "code" in error &&
-        error.code === "ENOENT"
-      ))
-        throw error;
+    for (const root of localRootCandidates()) {
+      try {
+        await unlink(localObjectPath(key, root));
+      } catch (error) {
+        if (
+          !(
+            error instanceof Error &&
+            "code" in error &&
+            error.code === "ENOENT"
+          )
+        )
+          throw error;
+      }
     }
     return;
   }
@@ -107,7 +139,7 @@ export async function deleteObject(key: string) {
 export async function downloadObject(key: string) {
   if (usesLocalStorage())
     return {
-      bytes: new Uint8Array(await readFile(localObjectPath(key))),
+      bytes: new Uint8Array(await readFile(await resolveExistingLocalPath(key))),
       contentType: contentTypeForKey(key),
     };
   const config = storageConfig();
