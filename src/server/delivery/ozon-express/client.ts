@@ -49,6 +49,17 @@ function readString(record: Record<string, unknown>, ...keys: string[]) {
   return undefined;
 }
 
+function firstRecord(
+  root: Record<string, unknown>,
+  ...keys: string[]
+): Record<string, unknown> | null {
+  for (const key of keys) {
+    const value = asRecord(root[key]);
+    if (value) return value;
+  }
+  return null;
+}
+
 function assertApiOk(payload: unknown, status: number) {
   const root = asRecord(payload);
   const check = asRecord(root?.CHECK_API) as OzonApiErrorPayload | null;
@@ -59,14 +70,20 @@ function assertApiOk(payload: unknown, status: number) {
       payload,
     );
   }
-  const result = readString(root ?? {}, "RESULT", "result");
-  if (result?.toUpperCase() === "ERROR") {
-    throw new OzonExpressError(
-      readString(root ?? {}, "MESSAGE", "message") ||
-        "Ozon Express API rejected the request",
-      status,
-      payload,
-    );
+  const scopes = [
+    root,
+    firstRecord(root ?? {}, "ADD-PARCEL", "ADD_PARCEL"),
+  ].filter(Boolean) as Record<string, unknown>[];
+  for (const scope of scopes) {
+    const result = readString(scope, "RESULT", "result");
+    if (result?.toUpperCase() === "ERROR") {
+      throw new OzonExpressError(
+        readString(scope, "MESSAGE", "message") ||
+          "Ozon Express API rejected the request",
+        status,
+        payload,
+      );
+    }
   }
 }
 
@@ -197,20 +214,37 @@ export async function addOzonParcel(
   };
   const payload = await postForm(credentials, "add-parcel", fields);
   const root = asRecord(payload) ?? {};
+  // Live API shape:
+  // { "ADD-PARCEL": { RESULT, MESSAGE, "NEW-PARCEL": { "TRACKING-NUMBER": ... } } }
+  const addParcel =
+    firstRecord(root, "ADD-PARCEL", "ADD_PARCEL", "PARCEL", "DATA") ?? root;
   const nested =
-    asRecord(root.ADD_PARCEL) ??
-    asRecord(root.PARCEL) ??
-    asRecord(root.DATA) ??
-    root;
-  const trackingNumber = readString(
-    nested,
-    "TRACKING-NUMBER",
-    "TRACKING_NUMBER",
-    "tracking-number",
-    "tracking_number",
-    "CODE",
-    "code",
-  );
+    firstRecord(addParcel, "NEW-PARCEL", "NEW_PARCEL", "PARCEL", "DATA") ??
+    addParcel;
+  const trackingNumber =
+    readString(
+      nested,
+      "TRACKING-NUMBER",
+      "TRACKING_NUMBER",
+      "tracking-number",
+      "tracking_number",
+      "CODE",
+      "code",
+    ) ||
+    readString(
+      addParcel,
+      "TRACKING-NUMBER",
+      "TRACKING_NUMBER",
+      "tracking-number",
+      "tracking_number",
+    ) ||
+    readString(
+      root,
+      "TRACKING-NUMBER",
+      "TRACKING_NUMBER",
+      "tracking-number",
+      "tracking_number",
+    );
   if (!trackingNumber) {
     throw new OzonExpressError(
       "Ozon Express did not return a tracking number",

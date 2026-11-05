@@ -90,6 +90,42 @@ describe("ozon express client", () => {
     expect(calledInit?.body).toBeInstanceOf(FormData);
   });
 
+  it("parses the live ADD-PARCEL / NEW-PARCEL response shape", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          "ADD-PARCEL": {
+            CUSTOMER: { RESULT: "SUCCESS", MESSAGE: "Valid Customer" },
+            RESULT: "SUCCESS",
+            MESSAGE: "New Parcel Added",
+            "NEW-PARCEL": {
+              "TRACKING-NUMBER": "TJ-2026-0000001",
+              RECEIVER: "Mohammed Alami",
+              PHONE: "0612345678",
+              CITY_ID: 61,
+              ADDRESS: "Mistah raha",
+              PRICE: 249,
+            },
+          },
+        }),
+      ),
+    );
+
+    const result = await addOzonParcel(credentials, {
+      trackingNumber: "TJ-2026-0000001",
+      receiver: "Mohammed Alami",
+      phone: "0612345678",
+      cityId: 61,
+      address: "Mistah raha",
+      price: 249,
+      stock: 0,
+    });
+
+    expect(result.trackingNumber).toBe("TJ-2026-0000001");
+    expect(result.cityId).toBe("61");
+  });
+
   it("rejects invalid API keys", async () => {
     vi.stubGlobal(
       "fetch",
