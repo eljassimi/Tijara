@@ -6,7 +6,7 @@
   "packageManager": "pnpm@9.12.3",
   "scripts": {
     "dev": "TZ=UTC next dev --turbopack",
-    "build": "prisma generate && prisma migrate deploy && tsx scripts/ensure-admin.ts && tsx scripts/ensure-media-link.ts && RAYON_NUM_THREADS=1 UV_THREADPOOL_SIZE=2 TZ=UTC next build",
+    "build": "prisma generate && prisma migrate deploy && tsx scripts/ensure-admin.ts && tsx scripts/ensure-cities.ts && tsx scripts/ensure-media-link.ts && RAYON_NUM_THREADS=1 UV_THREADPOOL_SIZE=2 TZ=UTC next build",
     "start": "TZ=UTC next start",
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
