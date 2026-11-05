@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, extname, join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@prisma/client";
@@ -10,6 +10,7 @@ import {
   catalogProducts,
   type CatalogProductSeed,
 } from "../prisma/catalog-products";
+import { toWebp } from "../src/server/media/to-webp";
 
 const LIMIT = Number(process.env.STOCKDYALI_IMPORT_LIMIT ?? 12);
 const connectionString = process.env.DATABASE_URL;
@@ -81,17 +82,6 @@ function variantToken(value: string) {
   );
 }
 
-function extensionFromUrl(url: string, contentType: string) {
-  const fromPath = extname(new URL(url).pathname).toLowerCase();
-  if ([".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(fromPath)) {
-    return fromPath === ".jpeg" ? ".jpg" : fromPath;
-  }
-  if (contentType.includes("png")) return ".png";
-  if (contentType.includes("webp")) return ".webp";
-  if (contentType.includes("gif")) return ".gif";
-  return ".jpg";
-}
-
 async function downloadImage(url: string) {
   const response = await fetch(url, {
     headers: {
@@ -104,12 +94,11 @@ async function downloadImage(url: string) {
   if (!response.ok) {
     throw new Error(`Image download failed ${response.status} for ${url}`);
   }
-  const contentType = response.headers.get("content-type") || "image/jpeg";
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.byteLength < 500) {
     throw new Error(`Image too small (${bytes.byteLength}) for ${url}`);
   }
-  return { bytes, contentType };
+  return bytes;
 }
 
 async function importProductImages(
@@ -129,10 +118,10 @@ async function importProductImages(
 
   for (const [index, imageUrl] of images.entries()) {
     try {
-      const { bytes, contentType } = await downloadImage(imageUrl);
-      const ext = extensionFromUrl(imageUrl, contentType);
-      const objectKey = `products/stockdyali/${sourceId}/${String(index + 1).padStart(2, "0")}${ext}`;
-      const url = await putBytes(objectKey, bytes, contentType);
+      const source = await downloadImage(imageUrl);
+      const webp = await toWebp(source);
+      const objectKey = `products/stockdyali/${sourceId}/${String(index + 1).padStart(2, "0")}.webp`;
+      const url = await putBytes(objectKey, webp.bytes, webp.contentType);
       created.push({
         productId,
         objectKey,

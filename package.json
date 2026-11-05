@@ -19,6 +19,7 @@
     "admin:ensure": "TZ=UTC tsx scripts/ensure-admin.ts",
     "catalog:sync": "node --import tsx prisma/sync-catalog.ts",
     "catalog:import-stockdyali": "TZ=UTC tsx scripts/import-stockdyali-12.ts",
+    "catalog:convert-webp": "TZ=UTC tsx scripts/convert-product-images-webp.ts",
     "cities:sync": "node --import tsx prisma/sync-cities.ts",
     "format": "prettier --write .",
     "worker": "TZ=UTC tsx src/jobs/worker.ts"
@@ -54,6 +55,7 @@
     "react-dom": "latest",
     "react-hook-form": "latest",
     "recharts": "latest",
+    "sharp": "^0.35.5",
     "tailwind-merge": "latest",
     "zod": "latest"
   },
