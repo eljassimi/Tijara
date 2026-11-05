@@ -367,8 +367,8 @@ export default async function LogisticsPage({
               : "L’adresse est obligatoire pour envoyer le colis via l’API.",
           "handoff-api-failed":
             locale === "ar"
-              ? `فشل إرسال Ozon Express${query.ref ? ` : ${query.ref}` : "."}`
-              : `Échec de l’envoi Ozon Express${query.ref ? ` : ${query.ref}` : "."}`,
+              ? `فشل إرسال Ozon Express${query.ref ? ` : ${query.ref}` : "."} تحقق من رسالة الخطأ تحت الطلب.`
+              : `Échec Ozon Express${query.ref ? ` : ${query.ref}` : "."} Voir le détail sous la commande. Si le colis existe déjà chez Ozon, réessayez après la mise à jour.`,
           "handoff-no-parcels":
             locale === "ar"
               ? "لا توجد طرود جاهزة لبون التسليم."
@@ -586,7 +586,21 @@ export default async function LogisticsPage({
                     {order.address ? cleanDemoLabel(order.address) : "—"}
                   </span>
                   {order.deliverySyncError ? (
-                    <small className="muted">{order.deliverySyncError}</small>
+                    <small className="muted" role="alert">
+                      {/tracking number used before/i.test(
+                        order.deliverySyncError,
+                      )
+                        ? locale === "ar"
+                          ? "رقم التتبع مستخدم مسبقاً عند Ozon Express — الطرد موجود غالباً. أعد المحاولة بعد التحديث لمزامنته."
+                          : "Ce numéro de suivi existe déjà chez Ozon Express (colis déjà créé). Réessayez après la mise à jour pour le synchroniser."
+                        : /did not return a tracking number/i.test(
+                              order.deliverySyncError,
+                            )
+                          ? locale === "ar"
+                            ? "Ozon أنشأ الطرد لكن الرد لم يُفهم. أعد المحاولة بعد التحديث."
+                            : "Ozon a créé le colis, mais la réponse n’a pas été lue. Réessayez après la mise à jour."
+                          : order.deliverySyncError}
+                    </small>
                   ) : null}
                 </div>
                 <div className="operations-card__items">

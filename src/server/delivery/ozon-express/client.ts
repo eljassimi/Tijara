@@ -188,6 +188,71 @@ export async function verifyOzonCredentials(credentials: OzonCredentials) {
   }
 }
 
+function trackingFromRecord(record: Record<string, unknown> | null | undefined) {
+  if (!record) return undefined;
+  return readString(
+    record,
+    "TRACKING-NUMBER",
+    "TRACKING_NUMBER",
+    "tracking-number",
+    "tracking_number",
+    "CODE",
+    "code",
+  );
+}
+
+function parcelResultFromRecords(
+  nested: Record<string, unknown>,
+  payload: unknown,
+): OzonAddParcelResult {
+  const trackingNumber = trackingFromRecord(nested);
+  if (!trackingNumber) {
+    throw new OzonExpressError(
+      "Ozon Express did not return a tracking number",
+      502,
+      payload,
+    );
+  }
+  return {
+    trackingNumber,
+    receiver: readString(nested, "RECEIVER", "RECEIVER_NAME", "receiver"),
+    phone: readString(nested, "PHONE", "phone"),
+    cityId: readString(nested, "CITY_ID", "city_id"),
+    cityName: readString(nested, "CITY_NAME", "city_name"),
+    address: readString(nested, "ADDRESS", "address"),
+    price: readString(nested, "PRICE", "price"),
+    raw: payload,
+  };
+}
+
+export function isTrackingNumberUsedBeforeError(error: unknown) {
+  if (!(error instanceof OzonExpressError)) return false;
+  return /tracking number used before/i.test(error.message);
+}
+
+export function parseOzonParcelInfo(
+  payload: unknown,
+): OzonAddParcelResult | null {
+  const root = asRecord(payload) ?? {};
+  const infoRoot =
+    firstRecord(root, "PARCEL-INFO", "PARCEL_INFO", "PARCEL") ?? root;
+  const nested =
+    firstRecord(infoRoot, "INFOS", "INFO", "NEW-PARCEL", "NEW_PARCEL") ??
+    infoRoot;
+  const trackingNumber =
+    trackingFromRecord(nested) ||
+    trackingFromRecord(infoRoot) ||
+    trackingFromRecord(root);
+  if (!trackingNumber) return null;
+  return parcelResultFromRecords(
+    {
+      ...nested,
+      "TRACKING-NUMBER": trackingNumber,
+    },
+    payload,
+  );
+}
+
 export async function addOzonParcel(
   credentials: OzonCredentials,
   input: OzonAddParcelInput,
@@ -212,56 +277,47 @@ export async function addOzonParcel(
         ? JSON.stringify(input.products)
         : undefined,
   };
-  const payload = await postForm(credentials, "add-parcel", fields);
-  const root = asRecord(payload) ?? {};
-  // Live API shape:
-  // { "ADD-PARCEL": { RESULT, MESSAGE, "NEW-PARCEL": { "TRACKING-NUMBER": ... } } }
-  const addParcel =
-    firstRecord(root, "ADD-PARCEL", "ADD_PARCEL", "PARCEL", "DATA") ?? root;
-  const nested =
-    firstRecord(addParcel, "NEW-PARCEL", "NEW_PARCEL", "PARCEL", "DATA") ??
-    addParcel;
-  const trackingNumber =
-    readString(
-      nested,
-      "TRACKING-NUMBER",
-      "TRACKING_NUMBER",
-      "tracking-number",
-      "tracking_number",
-      "CODE",
-      "code",
-    ) ||
-    readString(
-      addParcel,
-      "TRACKING-NUMBER",
-      "TRACKING_NUMBER",
-      "tracking-number",
-      "tracking_number",
-    ) ||
-    readString(
-      root,
-      "TRACKING-NUMBER",
-      "TRACKING_NUMBER",
-      "tracking-number",
-      "tracking_number",
-    );
-  if (!trackingNumber) {
-    throw new OzonExpressError(
-      "Ozon Express did not return a tracking number",
-      502,
+  try {
+    const payload = await postForm(credentials, "add-parcel", fields);
+    const root = asRecord(payload) ?? {};
+    // Live API shape:
+    // { "ADD-PARCEL": { RESULT, MESSAGE, "NEW-PARCEL": { "TRACKING-NUMBER": ... } } }
+    const addParcel =
+      firstRecord(root, "ADD-PARCEL", "ADD_PARCEL", "PARCEL", "DATA") ?? root;
+    const nested =
+      firstRecord(addParcel, "NEW-PARCEL", "NEW_PARCEL", "PARCEL", "DATA") ??
+      addParcel;
+    const tracking =
+      trackingFromRecord(nested) ||
+      trackingFromRecord(addParcel) ||
+      trackingFromRecord(root);
+    return parcelResultFromRecords(
+      {
+        ...nested,
+        ...(tracking ? { "TRACKING-NUMBER": tracking } : {}),
+      },
       payload,
     );
+  } catch (error) {
+    // First attempt may have created the parcel while our app failed to parse
+    // the response. Retrying with the same order code then returns this error.
+    if (
+      isTrackingNumberUsedBeforeError(error) &&
+      input.trackingNumber?.trim()
+    ) {
+      const existing = await getOzonParcelInfo(
+        credentials,
+        input.trackingNumber.trim(),
+      );
+      const parsed = parseOzonParcelInfo(existing);
+      if (parsed) return parsed;
+      return {
+        trackingNumber: input.trackingNumber.trim(),
+        raw: existing,
+      };
+    }
+    throw error;
   }
-  return {
-    trackingNumber,
-    receiver: readString(nested, "RECEIVER", "RECEIVER_NAME", "receiver"),
-    phone: readString(nested, "PHONE", "phone"),
-    cityId: readString(nested, "CITY_ID", "city_id"),
-    cityName: readString(nested, "CITY_NAME", "city_name"),
-    address: readString(nested, "ADDRESS", "address"),
-    price: readString(nested, "PRICE", "price"),
-    raw: payload,
-  };
 }
 
 export async function getOzonParcelInfo(

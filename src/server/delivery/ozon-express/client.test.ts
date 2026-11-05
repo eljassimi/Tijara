@@ -7,6 +7,7 @@ import {
   fetchOzonCities,
   OzonExpressError,
   ozonDeliveryNotePdfUrls,
+  parseOzonParcelInfo,
   verifyOzonCredentials,
 } from "./client";
 
@@ -124,6 +125,62 @@ describe("ozon express client", () => {
 
     expect(result.trackingNumber).toBe("TJ-2026-0000001");
     expect(result.cityId).toBe("61");
+  });
+
+  it("recovers when tracking number was already created on Ozon", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          "ADD-PARCEL": {
+            CUSTOMER: { RESULT: "SUCCESS", MESSAGE: "Valid Customer" },
+            RESULT: "ERROR",
+            MESSAGE: "Tracking Number Used Before",
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          CHECK_API: { RESULT: "SUCCESS", MESSAGE: "Valide API Key" },
+          "PARCEL-INFO": {
+            CUSTOMER: { RESULT: "SUCCESS", MESSAGE: "Valid Customer" },
+            RESULT: "SUCCESS",
+            MESSAGE: "Parcel Found",
+            INFOS: {
+              "TRACKING-NUMBER": "TJ-2026-0000001",
+              RECEIVER: "Mohammed Alami",
+              CITY_ID: "61",
+              CITY_NAME: "Safi",
+            },
+          },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await addOzonParcel(credentials, {
+      trackingNumber: "TJ-2026-0000001",
+      receiver: "Mohammed Alami",
+      phone: "0612345678",
+      cityId: 61,
+      address: "Mistah raha",
+      price: 249,
+      stock: 0,
+    });
+
+    expect(result.trackingNumber).toBe("TJ-2026-0000001");
+    expect(result.cityName).toBe("Safi");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("parses parcel-info payloads", () => {
+    const parsed = parseOzonParcelInfo({
+      "PARCEL-INFO": {
+        RESULT: "SUCCESS",
+        INFOS: { "TRACKING-NUMBER": "TJ-2026-0000002", CITY_NAME: "Taghazout" },
+      },
+    });
+    expect(parsed?.trackingNumber).toBe("TJ-2026-0000002");
+    expect(parsed?.cityName).toBe("Taghazout");
   });
 
   it("rejects invalid API keys", async () => {
