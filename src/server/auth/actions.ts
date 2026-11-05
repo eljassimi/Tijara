@@ -1,6 +1,5 @@
 "use server";
 
-import { hash, verify } from "argon2";
 import { createHash, randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import nodemailer from "nodemailer";
@@ -9,6 +8,7 @@ import { z } from "zod";
 import { homePathForRole } from "@/lib/navigation";
 import { prisma } from "@/lib/prisma";
 import { loginSchema, signupSchema } from "@/lib/validation/auth";
+import { hashPassword, verifyPassword } from "./password";
 import { createDatabaseSession, destroyDatabaseSession } from "./session";
 import { verifyTurnstile } from "./turnstile";
 import { accountCanAccess } from "./access-policy";
@@ -59,7 +59,7 @@ export async function loginAction(formData: FormData) {
       },
     },
   });
-  const passwordValid = await verify(
+  const passwordValid = await verifyPassword(
     user?.passwordHash ?? DUMMY_PASSWORD_HASH,
     parsed.data.password,
   );
@@ -125,10 +125,7 @@ export async function signupAction(formData: FormData) {
   ) {
     redirect(`/${locale}/signup?status=exists`);
   }
-  const passwordHash = await hash(parsed.data.password, {
-    memoryCost: 19_456,
-    timeCost: 2,
-  });
+  const passwordHash = await hashPassword(parsed.data.password);
   await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
@@ -280,7 +277,7 @@ export async function resetPasswordAction(formData: FormData) {
     await tx.user.update({
       where: { id: record.userId },
       data: {
-        passwordHash: await hash(password, { memoryCost: 19_456, timeCost: 2 }),
+        passwordHash: await hashPassword(password),
       },
     });
     await tx.passwordResetToken.update({

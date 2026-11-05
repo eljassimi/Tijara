@@ -2,7 +2,6 @@
 
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { hash, verify } from "argon2";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -20,6 +19,7 @@ import {
   type CreateProductField,
   type CreateProductState,
 } from "@/lib/validation/product";
+import { hashPassword, verifyPassword } from "@/server/auth/password";
 import { requirePermission, requireRole } from "@/server/auth/session";
 import { affiliateIdFor } from "@/server/orders/service";
 import { nextCounter } from "@/server/db/counter";
@@ -563,7 +563,7 @@ export async function updateStaffBankAction(formData: FormData) {
     bankChanging &&
     (!current.passwordHash ||
       !parsed.data.currentPassword ||
-      !(await verify(current.passwordHash, parsed.data.currentPassword)))
+      !(await verifyPassword(current.passwordHash, parsed.data.currentPassword)))
   ) {
     redirect(`/${locale}/admin/settings?tab=bank&status=current-password`);
   }
@@ -615,7 +615,7 @@ export async function updateStaffPasswordAction(formData: FormData) {
   });
   if (
     !current.passwordHash ||
-    !(await verify(current.passwordHash, parsed.data.currentPassword))
+    !(await verifyPassword(current.passwordHash, parsed.data.currentPassword))
   ) {
     redirect(
       `/${locale}/admin/settings?tab=password&status=current-password`,
@@ -623,7 +623,7 @@ export async function updateStaffPasswordAction(formData: FormData) {
   }
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash: await hash(parsed.data.password) },
+    data: { passwordHash: await hashPassword(parsed.data.password) },
   });
   await prisma.auditLog.create({
     data: {
@@ -920,7 +920,7 @@ export async function updateBankAction(formData: FormData) {
     bankChanging &&
     (!current.passwordHash ||
       !parsed.data.currentPassword ||
-      !(await verify(current.passwordHash, parsed.data.currentPassword)))
+      !(await verifyPassword(current.passwordHash, parsed.data.currentPassword)))
   ) {
     redirect(
       `/${locale}/app/partner/settings?tab=bank&status=current-password`,
@@ -971,7 +971,7 @@ export async function updatePasswordAction(formData: FormData) {
   });
   if (
     !current.passwordHash ||
-    !(await verify(current.passwordHash, parsed.data.currentPassword))
+    !(await verifyPassword(current.passwordHash, parsed.data.currentPassword))
   ) {
     redirect(
       `/${locale}/app/partner/settings?tab=password&status=current-password`,
@@ -980,7 +980,7 @@ export async function updatePasswordAction(formData: FormData) {
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: user.id },
-      data: { passwordHash: await hash(parsed.data.password) },
+      data: { passwordHash: await hashPassword(parsed.data.password) },
     });
     await tx.auditLog.create({
       data: {
@@ -1874,7 +1874,7 @@ export async function inviteStaffAction(formData: FormData) {
         name: parsed.data.name,
         email: parsed.data.email,
         phone: parsed.data.phone || null,
-        passwordHash: await hash(parsed.data.password),
+        passwordHash: await hashPassword(parsed.data.password),
         role: "AFFILIATE_STAFF",
         status: "ACTIVE",
         preferredLocale: locale === "ar" ? "AR" : "FR",
@@ -1992,25 +1992,30 @@ export async function createOperationsTeamMemberAction(formData: FormData) {
   )
     redirect(`/${locale}/admin/team?status=duplicate`);
 
-  const member = await prisma.user.create({
-    data: {
-      name: parsed.data.name,
-      email: parsed.data.email,
-      passwordHash: await hash(parsed.data.password),
-      role: parsed.data.role,
-      status: "ACTIVE",
-      preferredLocale: locale === "ar" ? "AR" : "FR",
-    },
-  });
-  await prisma.auditLog.create({
-    data: {
-      actorId: actor.id,
-      action: "CREATE",
-      entityType: "OperationsTeamMember",
-      entityId: member.id,
-      after: { email: member.email, role: member.role },
-    },
-  });
+  try {
+    const member = await prisma.user.create({
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email,
+        passwordHash: await hashPassword(parsed.data.password),
+        role: parsed.data.role,
+        status: "ACTIVE",
+        preferredLocale: locale === "ar" ? "AR" : "FR",
+      },
+    });
+    await prisma.auditLog.create({
+      data: {
+        actorId: actor.id,
+        action: "CREATE",
+        entityType: "OperationsTeamMember",
+        entityId: member.id,
+        after: { email: member.email, role: member.role },
+      },
+    });
+  } catch (error) {
+    console.error("createOperationsTeamMemberAction failed", error);
+    redirect(`/${locale}/admin/team?status=failed`);
+  }
   revalidatePath(`/${locale}/admin/team`);
   redirect(`/${locale}/admin/team?status=created`);
 }

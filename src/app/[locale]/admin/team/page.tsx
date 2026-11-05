@@ -93,6 +93,10 @@ export default async function OperationsTeamPage({
             locale === "ar"
               ? "تحقق من معلومات الموظف."
               : "Vérifiez les informations du membre.",
+          failed:
+            locale === "ar"
+              ? "تعذر إضافة الموظف. أعد تحميل الصفحة ثم حاول مرة أخرى."
+              : "Impossible d’ajouter le membre. Rechargez la page puis réessayez.",
         }}
       />
 
