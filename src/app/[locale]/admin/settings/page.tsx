@@ -66,6 +66,14 @@ export default async function AdminSettingsPage({
               : "Gérer les sociétés de livraison et leurs intégrations.",
         },
         {
+          href: "/admin/cities" as const,
+          label: locale === "ar" ? "المدن" : "Villes",
+          body:
+            locale === "ar"
+              ? "رسوم التوصيل ومزامنة مدن Ozon Express."
+              : "Frais de livraison et synchro des villes Ozon Express.",
+        },
+        {
           href: "/admin/content" as const,
           label: adminT("content"),
           body:

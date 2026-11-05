@@ -148,7 +148,7 @@ export async function createCourierAction(formData: FormData) {
     .object({
       name: z.string().trim().min(2).max(100),
       provider: z.enum(["NONE", "OZON_EXPRESS"]).default("NONE"),
-      integrationMode: z.enum(["MANUAL", "API"]),
+      integrationMode: z.enum(["MANUAL", "API"]).optional(),
       externalAccountId: z.string().trim().max(100).optional(),
       apiBaseUrl: z.preprocess(
         (value) => (value === "" ? undefined : value),
@@ -157,18 +157,18 @@ export async function createCourierAction(formData: FormData) {
     })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect(`/${locale}/admin/couriers?status=invalid`);
+  const isOzon = parsed.data.provider === "OZON_EXPRESS";
   const courier = await prisma.courier.create({
     data: {
       name: parsed.data.name,
       provider: parsed.data.provider,
-      integrationMode: parsed.data.integrationMode,
+      integrationMode:
+        parsed.data.integrationMode ?? (isOzon ? "API" : "MANUAL"),
       integrationStatus: "NOT_CONFIGURED",
       externalAccountId: parsed.data.externalAccountId || null,
       apiBaseUrl:
         parsed.data.apiBaseUrl ||
-        (parsed.data.provider === "OZON_EXPRESS"
-          ? "https://api.ozonexpress.ma"
-          : null),
+        (isOzon ? "https://api.ozonexpress.ma" : null),
     },
   });
   await prisma.auditLog.create({
@@ -281,17 +281,40 @@ export async function connectOzonCourierAction(formData: FormData) {
       `/${locale}/admin/couriers?status=ozon-auth-failed&ref=${encodeURIComponent(result.message)}`,
     );
   }
+
+  // Map Ozon city IDs once on connect so parcels use the right city.
+  let citiesSynced = 0;
+  try {
+    const { syncCitiesFromOzon } = await import(
+      "@/server/delivery/ozon-express/cities"
+    );
+    const cities = await syncCitiesFromOzon(
+      prisma,
+      parsed.data.apiBaseUrl ?? "https://api.ozonexpress.ma",
+    );
+    citiesSynced = cities.length;
+  } catch {
+    // Connection still succeeds; city sync can be retried from Settings → Villes.
+  }
+
   await prisma.auditLog.create({
     data: {
       actorId: actor.id,
       action: "UPDATE",
       entityType: "Courier",
       entityId: parsed.data.courierId,
-      after: { provider: "OZON_EXPRESS", integrationStatus: "CONNECTED" },
+      after: {
+        provider: "OZON_EXPRESS",
+        integrationStatus: "CONNECTED",
+        citiesSynced,
+      },
     },
   });
   revalidatePath(`/${locale}/admin/couriers`);
-  redirect(`/${locale}/admin/couriers?status=ozon-connected`);
+  revalidatePath(`/${locale}/admin/cities`);
+  redirect(
+    `/${locale}/admin/couriers?status=ozon-connected&cities=${citiesSynced}`,
+  );
 }
 
 export async function syncOzonCitiesAction(formData: FormData) {
