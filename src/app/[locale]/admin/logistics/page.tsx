@@ -389,6 +389,10 @@ export default async function LogisticsPage({
             locale === "ar"
               ? "اختر الشركة والطلبات لإنشاء بون التسليم."
               : "Choisissez la société et les commandes pour le bon de livraison.",
+          "bl-failed":
+            locale === "ar"
+              ? "تعذر إنشاء بون التسليم عبر Ozon Express. أعد المحاولة."
+              : "Impossible de créer le bon de livraison via Ozon Express. Réessayez.",
           "tracking-synced":
             locale === "ar"
               ? `مزامنة التتبع: فُحص ${query.checked ?? 0} · حُدّث ${query.updated ?? 0}`

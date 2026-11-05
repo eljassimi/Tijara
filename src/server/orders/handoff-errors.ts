@@ -43,5 +43,16 @@ export function handoffStatusFromError(error: unknown): {
       ref: message.slice("Duplicate parcel code:".length).trim(),
     };
   }
+  // Ozon Express / network failures during send or BL creation.
+  if (
+    /ozon express/i.test(message) ||
+    /delivery note/i.test(message) ||
+    /tracking number/i.test(message)
+  ) {
+    return {
+      status: "handoff-api-failed",
+      ref: message.slice(0, 180),
+    };
+  }
   return { status: "handoff-failed" };
 }

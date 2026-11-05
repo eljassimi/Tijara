@@ -1,9 +1,14 @@
-import { CircleAlert, CircleCheck } from "lucide-react";
+"use client";
+
+import { CircleAlert, CircleCheck, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 /** Statuses that should stay on the error/warning (red) notice style. */
 const errorNoticeStatuses = new Set([
   "bank-required",
   "bank_reference_required",
+  "bl-invalid",
   "callback-required",
   "cap-20",
   "captcha",
@@ -15,12 +20,16 @@ const errorNoticeStatuses = new Set([
   "expired",
   "failed",
   "forbidden",
+  "handoff-address-required",
   "handoff-already-sent",
+  "handoff-api-failed",
+  "handoff-city-unmapped",
   "handoff-company-inactive",
   "handoff-company-required",
   "handoff-duplicate-parcel",
   "handoff-failed",
   "handoff-forbidden",
+  "handoff-no-parcels",
   "handoff-not-confirmed",
   "handoff-not-ready",
   "handoff-order-closed",
@@ -54,6 +63,16 @@ const errorNoticeStatuses = new Set([
   "unknown-city",
 ]);
 
+const STATUS_QUERY_KEYS = [
+  "status",
+  "ref",
+  "ok",
+  "failed",
+  "pdf",
+  "cities",
+  "count",
+] as const;
+
 export function isSuccessNoticeStatus(status: string) {
   return !errorNoticeStatuses.has(status);
 }
@@ -81,21 +100,73 @@ export function WorkflowHeader({
   );
 }
 
+function clearStatusQuery(pathname: string) {
+  const url = new URL(window.location.href);
+  let changed = false;
+  for (const key of STATUS_QUERY_KEYS) {
+    if (url.searchParams.has(key)) {
+      url.searchParams.delete(key);
+      changed = true;
+    }
+  }
+  if (!changed) return null;
+  const qs = url.searchParams.toString();
+  return qs ? `${pathname}?${qs}` : pathname;
+}
+
 export function FormNotice({
   status,
   messages,
+  dismissMs = 7000,
 }: {
   status?: string;
   messages: Record<string, string>;
+  dismissMs?: number;
 }) {
-  if (!status || !messages[status]) return null;
+  const router = useRouter();
+  const pathname = usePathname();
+  const message = status ? messages[status] : undefined;
+  const [visible, setVisible] = useState(Boolean(message));
+
+  useEffect(() => {
+    setVisible(Boolean(message));
+  }, [message, status]);
+
+  useEffect(() => {
+    if (!status || !message) return;
+
+    const timer = window.setTimeout(() => {
+      setVisible(false);
+      const next = clearStatusQuery(pathname);
+      if (next) router.replace(next, { scroll: false });
+    }, dismissMs);
+
+    return () => window.clearTimeout(timer);
+  }, [dismissMs, message, pathname, router, status]);
+
+  if (!visible || !status || !message) return null;
   const positive = isSuccessNoticeStatus(status);
+
   return (
     <p
       className={`workflow-notice${positive ? " workflow-notice--success" : ""}`}
+      role="status"
+      aria-live="polite"
     >
       {positive ? <CircleCheck size={17} /> : <CircleAlert size={17} />}
-      {messages[status]}
+      <span className="workflow-notice__text">{message}</span>
+      <button
+        type="button"
+        className="workflow-notice__dismiss"
+        aria-label="Fermer"
+        onClick={() => {
+          setVisible(false);
+          const next = clearStatusQuery(pathname);
+          if (next) router.replace(next, { scroll: false });
+        }}
+      >
+        <X size={15} />
+      </button>
     </p>
   );
 }

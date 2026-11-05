@@ -2308,6 +2308,29 @@ a.announcement-banner:hover {
   font-size: 12px;
   font-weight: 700;
 }
+.workflow-notice__text {
+  flex: 1;
+  min-width: 0;
+}
+.workflow-notice__dismiss {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-inline-start: auto;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.72;
+}
+.workflow-notice__dismiss:hover {
+  opacity: 1;
+  background: rgb(0 0 0 / 0.06);
+}
 .workflow-notice--success {
   border-color: rgb(25 195 156 / 0.2);
   background: rgb(25 195 156 / 0.1);

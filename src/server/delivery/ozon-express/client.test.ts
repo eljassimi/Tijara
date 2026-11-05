@@ -230,4 +230,28 @@ describe("ozon express client", () => {
     expect(urls.standard).toContain("dn-ref=BL240115001");
     expect(urls.tickets10x10).toContain("pdf-delivery-note-tickets-4-4");
   });
+
+  it("parses the live ADD-BL / NEW-BL delivery note response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          CHECK_API: { RESULT: "SUCCESS", MESSAGE: "Valide API Key" },
+          "ADD-BL": {
+            CUSTOMER: { RESULT: "SUCCESS", MESSAGE: "Valid Customer" },
+            RESULT: "SUCCESS",
+            MESSAGE: "New BL ADDED",
+            "NEW-BL": {
+              REF: "BL-051126-066761260-53-75450",
+              ID: 6676126,
+            },
+          },
+        }),
+      ),
+    );
+
+    const { createOzonDeliveryNote } = await import("./client");
+    const result = await createOzonDeliveryNote(credentials);
+    expect(result.ref).toBe("BL-051126-066761260-53-75450");
+  });
 });

@@ -410,24 +410,29 @@ export async function createDeliveryNoteAction(formData: FormData) {
     .filter(Boolean);
   if (!courierId || !orderIds.length)
     redirect(`/${locale}/admin/logistics?status=bl-invalid`);
+  let result: Awaited<
+    ReturnType<
+      typeof import("@/server/delivery/ozon-express/service").createDeliveryNoteForOrders
+    >
+  >;
   try {
     const { createDeliveryNoteForOrders } = await import(
       "@/server/delivery/ozon-express/service"
     );
-    const result = await createDeliveryNoteForOrders(
+    result = await createDeliveryNoteForOrders(
       { id: user.id, role: user.role },
       courierId,
       orderIds,
       { save: formData.get("save") !== "0" },
     );
-    revalidatePath(`/${locale}/admin/logistics`);
-    redirect(
-      `/${locale}/admin/logistics?status=bl-created&ref=${encodeURIComponent(result.note.externalRef)}&pdf=${encodeURIComponent(result.pdf.standard)}`,
-    );
   } catch (error) {
-    const result = handoffStatusFromError(error);
-    redirect(`/${locale}/admin/logistics?status=${result.status}`);
+    const mapped = handoffStatusFromError(error);
+    redirect(`/${locale}/admin/logistics?status=${mapped.status}`);
   }
+  revalidatePath(`/${locale}/admin/logistics`);
+  redirect(
+    `/${locale}/admin/logistics?status=bl-created&ref=${encodeURIComponent(result.note.externalRef)}&pdf=${encodeURIComponent(result.pdf.standard)}`,
+  );
 }
 
 export async function syncOzonTrackingAction(formData: FormData) {

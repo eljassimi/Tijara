@@ -72,7 +72,19 @@ function assertApiOk(payload: unknown, status: number) {
   }
   const scopes = [
     root,
-    firstRecord(root ?? {}, "ADD-PARCEL", "ADD_PARCEL"),
+    firstRecord(
+      root ?? {},
+      "ADD-PARCEL",
+      "ADD_PARCEL",
+      "ADD-BL",
+      "ADD_BL",
+      "ADD-PARCEL-BL",
+      "ADD_PARCEL_BL",
+      "SAVE-BL",
+      "SAVE_BL",
+      "PARCEL-INFO",
+      "PARCEL_INFO",
+    ),
   ].filter(Boolean) as Record<string, unknown>[];
   for (const scope of scopes) {
     const result = readString(scope, "RESULT", "result");
@@ -364,12 +376,24 @@ export async function getOzonTrackingBulk(
 export async function createOzonDeliveryNote(credentials: OzonCredentials) {
   const payload = await postForm(credentials, "add-delivery-note", {});
   const root = asRecord(payload) ?? {};
+  // Live API shape:
+  // { "ADD-BL": { RESULT, "NEW-BL": { REF: "BL-...", ID: 123 } } }
+  const addBl =
+    firstRecord(
+      root,
+      "ADD-BL",
+      "ADD_BL",
+      "ADD-DELIVERY-NOTE",
+      "ADD_DELIVERY_NOTE",
+      "DELIVERY_NOTE",
+      "DATA",
+    ) ?? root;
   const nested =
-    asRecord(root.ADD_DELIVERY_NOTE) ??
-    asRecord(root.DELIVERY_NOTE) ??
-    asRecord(root.DATA) ??
-    root;
-  const ref = readString(nested, "ref", "REF", "id_delivery_note", "ID");
+    firstRecord(addBl, "NEW-BL", "NEW_BL", "DELIVERY_NOTE", "DATA") ?? addBl;
+  const ref =
+    readString(nested, "REF", "ref", "dn-ref", "id_delivery_note") ||
+    readString(addBl, "REF", "ref") ||
+    readString(root, "REF", "ref");
   if (!ref) {
     throw new OzonExpressError(
       "Ozon Express did not return a delivery note reference",
