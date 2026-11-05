@@ -317,7 +317,7 @@
     "activate": "Activer",
     "suspend": "Suspendre",
     "couriersTitle": "Sociétés de livraison",
-    "couriersBody": "Ajoutez les sociétés utilisées par l’équipe. Le transfert reste manuel jusqu’à l’activation d’une intégration API.",
+    "couriersBody": "Ajoutez les sociétés et connectez Ozon Express (API) pour l’envoi, le suivi et les bons de livraison.",
     "name": "Nom",
     "createCourier": "Ajouter la société",
     "statusUpdated": "Le statut a été mis à jour.",

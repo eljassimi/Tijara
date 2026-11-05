@@ -31,10 +31,14 @@ import { formatAppDateTime } from "@/lib/time";
 import { requirePermission } from "@/server/auth/session";
 import { confirmationAssignmentScope } from "@/server/orders/confirmation-assignment";
 import {
+  bulkDeliveryHandoffAction,
+  createDeliveryNoteAction,
   deliveryHandoffAction,
   deliveryTransitionAction,
+  syncOzonTrackingAction,
 } from "@/server/orders/actions";
 import { deliveryTransitions } from "@/server/orders/state-machine";
+import { isOzonCourier } from "@/server/delivery/ozon-express/service";
 
 const PAGE_SIZE = 12;
 
@@ -46,6 +50,11 @@ type SearchParams = {
   page?: string;
   tpage?: string;
   hpage?: string;
+  ok?: string;
+  failed?: string;
+  checked?: string;
+  updated?: string;
+  pdf?: string;
 };
 
 export default async function LogisticsPage({
@@ -182,6 +191,7 @@ export default async function LogisticsPage({
     deliveredCount,
     historyOrders,
     historyTotal,
+    pendingDeliveryNote,
   ] = await Promise.all([
     getTranslations("Workflow"),
     prisma.order.findMany({
@@ -227,8 +237,20 @@ export default async function LogisticsPage({
     showHistory
       ? prisma.order.count({ where: historyWhere })
       : Promise.resolve(0),
+    prisma.order.findMany({
+      where: {
+        ...assignmentScope,
+        deliverySyncStatus: "SYNCED",
+        parcelCode: { not: null },
+        deliveryNoteId: null,
+        deliveryStatus: { in: ["AWAITING_PICKUP", "IN_TRANSIT"] },
+        courier: { provider: "OZON_EXPRESS" },
+      },
+      include: { city: true, courier: true },
+      orderBy: { sentToCourierAt: "asc" },
+      take: 100,
+    }),
   ]);
-
   const readyTotal = metrics.filter((order) =>
     ["NOT_SENT", "FAILED"].includes(order.deliverySyncStatus),
   ).length;
@@ -241,7 +263,10 @@ export default async function LogisticsPage({
   const readyPages = Math.max(1, Math.ceil(readyCount / PAGE_SIZE));
   const trackingPages = Math.max(1, Math.ceil(trackingCount / PAGE_SIZE));
   const historyPages = Math.max(1, Math.ceil(historyTotal / PAGE_SIZE));
-  const defaultCourierId = companies.length === 1 ? companies[0].id : "";
+  const defaultCourierId = companies.length === 1 ? companies[0]!.id : "";
+  const ozonCompanies = companies.filter((company) => isOzonCourier(company));
+  const defaultOzonCourierId =
+    ozonCompanies.length === 1 ? ozonCompanies[0]!.id : defaultCourierId;
   const statusOptions = logisticsFilterStatuses.map((item) => ({
     value: item,
     label: statusLabel(item, locale),
@@ -332,12 +357,82 @@ export default async function LogisticsPage({
             locale === "ar"
               ? "تعذر إرسال الطلب. تحقق من شركة التوصيل وحالة الطلب ثم أعد المحاولة."
               : "Impossible d’envoyer la commande. Vérifiez la société de livraison et l’état du dossier, puis réessayez.",
+          "handoff-city-unmapped":
+            locale === "ar"
+              ? "مدينة الطلب غير مربوطة بمدينة Ozon Express. زامن المدن أولاً."
+              : "La ville de la commande n’est pas liée à Ozon Express. Synchronisez les villes d’abord.",
+          "handoff-address-required":
+            locale === "ar"
+              ? "العنوان مطلوب لإرسال الطرد عبر API."
+              : "L’adresse est obligatoire pour envoyer le colis via l’API.",
+          "handoff-api-failed":
+            locale === "ar"
+              ? `فشل إرسال Ozon Express${query.ref ? ` : ${query.ref}` : "."}`
+              : `Échec de l’envoi Ozon Express${query.ref ? ` : ${query.ref}` : "."}`,
+          "handoff-no-parcels":
+            locale === "ar"
+              ? "لا توجد طرود جاهزة لبون التسليم."
+              : "Aucun colis prêt pour le bon de livraison.",
+          "bulk-empty":
+            locale === "ar"
+              ? "اختر طلبات واحدةً على الأقل للإرسال الجماعي."
+              : "Sélectionnez au moins une commande pour l’envoi groupé.",
+          "bulk-done":
+            locale === "ar"
+              ? `إرسال جماعي: نجح ${query.ok ?? 0} · فشل ${query.failed ?? 0}`
+              : `Envoi groupé : ${query.ok ?? 0} OK · ${query.failed ?? 0} échec(s)`,
+          "bl-created":
+            locale === "ar"
+              ? `تم إنشاء بون التسليم ${query.ref || ""}.`
+              : `Bon de livraison ${query.ref || ""} créé.`,
+          "bl-invalid":
+            locale === "ar"
+              ? "اختر الشركة والطلبات لإنشاء بون التسليم."
+              : "Choisissez la société et les commandes pour le bon de livraison.",
+          "tracking-synced":
+            locale === "ar"
+              ? `مزامنة التتبع: فُحص ${query.checked ?? 0} · حُدّث ${query.updated ?? 0}`
+              : `Suivi synchronisé : ${query.checked ?? 0} contrôlés · ${query.updated ?? 0} mis à jour`,
           "invalid-transition":
             locale === "ar"
               ? "هذا التغيير غير مسموح في حالة الطلب الحالية."
               : "Ce changement n’est pas permis depuis l’état actuel.",
         }}
       />
+
+      {ozonCompanies.length ? (
+        <section className="operations-section operations-section--tools">
+          <div className="operations-section__heading">
+            <div>
+              <span>Ozon Express</span>
+              <h2>
+                {locale === "ar" ? "أدوات API" : "Outils API"}
+              </h2>
+            </div>
+          </div>
+          <div className="filter-bar operations-filter-bar">
+            <PreserveScrollForm action={syncOzonTrackingAction}>
+              <input type="hidden" name="locale" value={locale} />
+              <button
+                className="button button--secondary button--compact"
+                type="submit"
+              >
+                {locale === "ar" ? "مزامنة حالات التتبع" : "Synchroniser le tracking"}
+              </button>
+            </PreserveScrollForm>
+            {query.pdf ? (
+              <a
+                className="button button--secondary button--compact"
+                href={query.pdf}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {locale === "ar" ? "فتح PDF بون التسليم" : "Ouvrir le PDF du BL"}
+              </a>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       <section
         className="operations-metrics"
@@ -418,9 +513,53 @@ export default async function LogisticsPage({
             {readyCount ? `${ready.length} / ${readyCount}` : ready.length}
           </small>
         </div>
+        {ready.length && companies.length ? (
+          <PreserveScrollForm
+            action={bulkDeliveryHandoffAction}
+            className="filter-bar operations-filter-bar"
+          >
+            <input type="hidden" name="locale" value={locale} />
+            {ready.map((order) => (
+              <input
+                key={`bulk-${order.id}`}
+                type="hidden"
+                name="orderIds"
+                value={order.id}
+              />
+            ))}
+            <div className="queue-form-field">
+              <span>
+                {locale === "ar" ? "إرسال جماعي عبر" : "Envoi groupé via"}
+              </span>
+              <CustomSelect
+                name="courierId"
+                label={t("courier")}
+                locale={locale}
+                defaultValue={defaultOzonCourierId || defaultCourierId}
+                options={companies.map((company) => ({
+                  value: company.id,
+                  label: `${company.name}${
+                    isOzonCourier(company) ? " · API" : ""
+                  }`,
+                }))}
+                required
+              />
+            </div>
+            <button
+              className="button button--primary button--compact"
+              type="submit"
+            >
+              {locale === "ar"
+                ? `إرسال جماعي (${ready.length})`
+                : `Envoi groupé (${ready.length})`}
+            </button>
+          </PreserveScrollForm>
+        ) : null}
         <div className="operations-grid">
           {ready.length ? (
-            ready.map((order) => (
+            ready.map((order) => {
+              const cityReady = Boolean(order.city.ozonCityId);
+              return (
               <article
                 className={operationsCardTone(order.deliverySyncStatus)}
                 id={`order-${order.id}`}
@@ -431,6 +570,7 @@ export default async function LogisticsPage({
                     <strong>{order.code}</strong>
                     <span>
                       {locale === "ar" ? order.city.nameAr : order.city.nameFr}
+                      {cityReady ? "" : locale === "ar" ? " · بدون Ozon ID" : " · sans ID Ozon"}
                     </span>
                   </div>
                   <StatusPill status={order.deliverySyncStatus}>
@@ -445,6 +585,9 @@ export default async function LogisticsPage({
                   <span>
                     {order.address ? cleanDemoLabel(order.address) : "—"}
                   </span>
+                  {order.deliverySyncError ? (
+                    <small className="muted">{order.deliverySyncError}</small>
+                  ) : null}
                 </div>
                 <div className="operations-card__items">
                   <ul>
@@ -492,25 +635,27 @@ export default async function LogisticsPage({
                       name="courierId"
                       label={t("courier")}
                       locale={locale}
-                      defaultValue={defaultCourierId}
+                      defaultValue={defaultOzonCourierId || defaultCourierId}
                       options={companies.map((company) => ({
                         value: company.id,
-                        label: company.name,
+                        label: `${company.name}${
+                          isOzonCourier(company) ? " · API" : ""
+                        }`,
                       }))}
                       required
                     />
                   </div>
                   <label>
-                    <span>{t("parcelCode")}</span>
-                    <input
-                      name="parcelCode"
-                    />
+                    <span>
+                      {locale === "ar"
+                        ? "رمز الطرد (يدوي فقط)"
+                        : "Code colis (manuel uniquement)"}
+                    </span>
+                    <input name="parcelCode" placeholder="OZEX…" />
                   </label>
                   <label>
                     <span>{t("notes")}</span>
-                    <input
-                      name="note"
-                    />
+                    <input name="note" />
                   </label>
                   <button
                     className="button button--primary button--compact"
@@ -518,12 +663,13 @@ export default async function LogisticsPage({
                     disabled={!companies.length}
                   >
                     {locale === "ar"
-                      ? "تسجيل الإرسال"
-                      : "Marquer comme envoyée"}
+                      ? "إرسال (API أو يدوي)"
+                      : "Envoyer (API ou manuel)"}
                   </button>
                 </PreserveScrollForm>
               </article>
-            ))
+            );
+            })
           ) : (
             <p className="queue-empty operations-grid__empty">
               {locale === "ar"
@@ -540,6 +686,70 @@ export default async function LogisticsPage({
           hrefForPage={readyHref}
         />
       </section>
+      ) : null}
+
+      {pendingDeliveryNote.length && ozonCompanies.length ? (
+        <section className="operations-section">
+          <div className="operations-section__heading">
+            <div>
+              <span>Ozon Express</span>
+              <h2>
+                {locale === "ar" ? "بون التسليم" : "Bon de livraison"}
+              </h2>
+            </div>
+            <small>{pendingDeliveryNote.length}</small>
+          </div>
+          <PreserveScrollForm
+            action={createDeliveryNoteAction}
+            className="filter-bar operations-filter-bar"
+          >
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="save" value="1" />
+            {pendingDeliveryNote.map((order) => (
+              <input
+                key={`bl-${order.id}`}
+                type="hidden"
+                name="orderIds"
+                value={order.id}
+              />
+            ))}
+            <div className="queue-form-field">
+              <span>{locale === "ar" ? "الشركة" : "Société"}</span>
+              <CustomSelect
+                name="courierId"
+                label={t("courier")}
+                locale={locale}
+                defaultValue={
+                  pendingDeliveryNote[0]?.courierId || defaultOzonCourierId
+                }
+                options={ozonCompanies.map((company) => ({
+                  value: company.id,
+                  label: company.name,
+                }))}
+                required
+              />
+            </div>
+            <button
+              className="button button--primary button--compact"
+              type="submit"
+            >
+              {locale === "ar"
+                ? `إنشاء بون التسليم (${pendingDeliveryNote.length})`
+                : `Créer le bon de livraison (${pendingDeliveryNote.length})`}
+            </button>
+          </PreserveScrollForm>
+          <ul className="queue-empty" style={{ listStyle: "none", padding: 0 }}>
+            {pendingDeliveryNote.slice(0, 12).map((order) => (
+              <li key={order.id}>
+                <strong>{order.code}</strong>
+                {" · "}
+                {order.parcelCode}
+                {" · "}
+                {locale === "ar" ? order.city.nameAr : order.city.nameFr}
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       {showTracking ? (
@@ -586,6 +796,9 @@ export default async function LogisticsPage({
                       ·{" "}
                       {order.parcelCode ??
                         (locale === "ar" ? "بدون رمز طرد" : "Sans code colis")}
+                      {order.providerStatus
+                        ? ` · ${order.providerStatus}`
+                        : ""}
                     </span>
                   </div>
                   <div className="operations-card__items">

@@ -100,6 +100,9 @@ async function expireUnreachableOrders() {
   return processed;
 }
 
+const trackingQueueName = "ozon-tracking-sync";
+const trackingQueue = new Queue(trackingQueueName, { connection });
+
 await queue.upsertJobScheduler(
   "confirmation-timeout-hourly",
   { pattern: "0 * * * *", tz: brand.timezone },
@@ -111,6 +114,21 @@ await queue.upsertJobScheduler(
       backoff: { type: "exponential", delay: 5_000 },
       removeOnComplete: 100,
       removeOnFail: 200,
+    },
+  },
+);
+
+await trackingQueue.upsertJobScheduler(
+  "ozon-tracking-every-15m",
+  { pattern: "*/15 * * * *", tz: brand.timezone },
+  {
+    name: "sync-ozon-tracking",
+    data: {},
+    opts: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 10_000 },
+      removeOnComplete: 50,
+      removeOnFail: 100,
     },
   },
 );
@@ -164,9 +182,22 @@ const worker = new Worker(
   { connection, concurrency: 2 },
 );
 
+const trackingWorker = new Worker(
+  trackingQueueName,
+  async () => {
+    const { syncOzonTrackingForOpenOrders } = await import(
+      "@/server/delivery/ozon-express/service"
+    );
+    return syncOzonTrackingForOpenOrders();
+  },
+  { connection, concurrency: 1 },
+);
+
 async function shutdown() {
   await worker.close();
+  await trackingWorker.close();
   await queue.close();
+  await trackingQueue.close();
   await connection.quit();
   await prisma.$disconnect();
   process.exit(0);

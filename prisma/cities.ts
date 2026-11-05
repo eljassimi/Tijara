@@ -64,6 +64,8 @@ export async function syncImportedCities(prisma: PrismaClient) {
                 ? existing.nameAr
                 : source.name,
             slug,
+            ozonCityId: source.sourceId,
+            ozonRef: source.ref,
             deliveryFee: source.deliveryFee,
             active: true,
             sortOrder,
@@ -74,6 +76,8 @@ export async function syncImportedCities(prisma: PrismaClient) {
             nameFr: source.name,
             nameAr: source.name,
             slug,
+            ozonCityId: source.sourceId,
+            ozonRef: source.ref,
             deliveryFee: source.deliveryFee,
             active: true,
             sortOrder,

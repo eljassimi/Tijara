@@ -147,6 +147,7 @@ export async function createCourierAction(formData: FormData) {
   const parsed = z
     .object({
       name: z.string().trim().min(2).max(100),
+      provider: z.enum(["NONE", "OZON_EXPRESS"]).default("NONE"),
       integrationMode: z.enum(["MANUAL", "API"]),
       externalAccountId: z.string().trim().max(100).optional(),
       apiBaseUrl: z.preprocess(
@@ -159,10 +160,15 @@ export async function createCourierAction(formData: FormData) {
   const courier = await prisma.courier.create({
     data: {
       name: parsed.data.name,
+      provider: parsed.data.provider,
       integrationMode: parsed.data.integrationMode,
       integrationStatus: "NOT_CONFIGURED",
       externalAccountId: parsed.data.externalAccountId || null,
-      apiBaseUrl: parsed.data.apiBaseUrl || null,
+      apiBaseUrl:
+        parsed.data.apiBaseUrl ||
+        (parsed.data.provider === "OZON_EXPRESS"
+          ? "https://api.ozonexpress.ma"
+          : null),
     },
   });
   await prisma.auditLog.create({
@@ -171,7 +177,7 @@ export async function createCourierAction(formData: FormData) {
       action: "CREATE",
       entityType: "Courier",
       entityId: courier.id,
-      after: { name: courier.name },
+      after: { name: courier.name, provider: courier.provider },
     },
   });
   revalidatePath(`/${locale}/admin/couriers`);
@@ -185,25 +191,36 @@ export async function updateCourierAction(formData: FormData) {
     .object({
       courierId: z.string().cuid(),
       name: z.string().trim().min(2).max(100),
+      provider: z.enum(["NONE", "OZON_EXPRESS"]),
       integrationMode: z.enum(["MANUAL", "API"]),
       integrationStatus: z.enum(["NOT_CONFIGURED", "CONNECTED", "PAUSED"]),
       externalAccountId: z.string().trim().max(100).optional(),
+      apiKey: z.string().trim().max(500).optional(),
       apiBaseUrl: z.preprocess(
         (value) => (value === "" ? undefined : value),
         z.string().url().max(500).optional(),
       ),
+      stockMode: z.coerce.number().int().min(0).max(1).optional(),
+      allowOpen: z.coerce.number().int().min(1).max(2).optional(),
       active: z.preprocess((value) => value === "on", z.boolean()),
     })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect(`/${locale}/admin/couriers?status=invalid`);
+  const existing = await prisma.courier.findUniqueOrThrow({
+    where: { id: parsed.data.courierId },
+  });
   const courier = await prisma.courier.update({
     where: { id: parsed.data.courierId },
     data: {
       name: parsed.data.name,
+      provider: parsed.data.provider,
       integrationMode: parsed.data.integrationMode,
       integrationStatus: parsed.data.integrationStatus,
       externalAccountId: parsed.data.externalAccountId || null,
       apiBaseUrl: parsed.data.apiBaseUrl || null,
+      apiKey: parsed.data.apiKey || existing.apiKey,
+      stockMode: parsed.data.stockMode ?? existing.stockMode,
+      allowOpen: parsed.data.allowOpen ?? existing.allowOpen,
       active: parsed.data.active,
     },
   });
@@ -216,6 +233,7 @@ export async function updateCourierAction(formData: FormData) {
       after: {
         name: courier.name,
         active: courier.active,
+        provider: courier.provider,
         integrationMode: courier.integrationMode,
         integrationStatus: courier.integrationStatus,
       },
@@ -223,6 +241,71 @@ export async function updateCourierAction(formData: FormData) {
   });
   revalidatePath(`/${locale}/admin/couriers`);
   redirect(`/${locale}/admin/couriers?status=updated`);
+}
+
+export async function connectOzonCourierAction(formData: FormData) {
+  const locale = localeFrom(formData);
+  const actor = await requireRole(locale, ["SUPER_ADMIN"]);
+  const parsed = z
+    .object({
+      courierId: z.string().cuid(),
+      customerId: z.string().trim().min(1).max(100),
+      apiKey: z.string().trim().max(500).optional(),
+      apiBaseUrl: z.preprocess(
+        (value) => (value === "" ? undefined : value),
+        z.string().url().max(500).optional(),
+      ),
+      stockMode: z.coerce.number().int().min(0).max(1).default(0),
+      allowOpen: z.coerce.number().int().min(1).max(2).default(1),
+    })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) redirect(`/${locale}/admin/couriers?status=invalid`);
+  const existing = await prisma.courier.findUniqueOrThrow({
+    where: { id: parsed.data.courierId },
+  });
+  const apiKey = parsed.data.apiKey || existing.apiKey || "";
+  if (apiKey.length < 8)
+    redirect(`/${locale}/admin/couriers?status=invalid`);
+  const { testAndConnectOzonCourier } = await import(
+    "@/server/delivery/ozon-express/service"
+  );
+  const result = await testAndConnectOzonCourier(parsed.data.courierId, {
+    customerId: parsed.data.customerId,
+    apiKey,
+    apiBaseUrl: parsed.data.apiBaseUrl ?? "https://api.ozonexpress.ma",
+    stockMode: parsed.data.stockMode,
+    allowOpen: parsed.data.allowOpen,
+  });
+  if (!result.ok) {
+    redirect(
+      `/${locale}/admin/couriers?status=ozon-auth-failed&ref=${encodeURIComponent(result.message)}`,
+    );
+  }
+  await prisma.auditLog.create({
+    data: {
+      actorId: actor.id,
+      action: "UPDATE",
+      entityType: "Courier",
+      entityId: parsed.data.courierId,
+      after: { provider: "OZON_EXPRESS", integrationStatus: "CONNECTED" },
+    },
+  });
+  revalidatePath(`/${locale}/admin/couriers`);
+  redirect(`/${locale}/admin/couriers?status=ozon-connected`);
+}
+
+export async function syncOzonCitiesAction(formData: FormData) {
+  const locale = localeFrom(formData);
+  await requireRole(locale, ["SUPER_ADMIN"]);
+  const { syncCitiesFromOzon } = await import(
+    "@/server/delivery/ozon-express/cities"
+  );
+  const cities = await syncCitiesFromOzon(prisma);
+  revalidatePath(`/${locale}/admin/cities`);
+  revalidatePath(`/${locale}/admin/couriers`);
+  redirect(
+    `/${locale}/admin/cities?status=ozon-synced&count=${cities.length}`,
+  );
 }
 
 export async function saveCityAction(formData: FormData) {

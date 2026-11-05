@@ -6,7 +6,11 @@ export type HandoffErrorCode =
   | "already-sent"
   | "order-closed"
   | "not-ready"
-  | "duplicate-parcel";
+  | "duplicate-parcel"
+  | "city-unmapped"
+  | "address-required"
+  | "api-failed"
+  | "no-parcels";
 
 export class HandoffError extends Error {
   readonly code: HandoffErrorCode;

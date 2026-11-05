@@ -9,17 +9,20 @@ import { formatMoney } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
 import { requireRole } from "@/server/auth/session";
-import { saveCityAction } from "@/server/operations/actions";
+import {
+  saveCityAction,
+  syncOzonCitiesAction,
+} from "@/server/operations/actions";
 
 export default async function CitiesPage({
   params,
   searchParams,
 }: {
   params: Promise<{ locale: "fr" | "ar" }>;
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; count?: string }>;
 }) {
   const { locale } = await params;
-  const { status } = await searchParams;
+  const { status, count } = await searchParams;
   await requireRole(locale, ["SUPER_ADMIN"]);
   const [t, cities] = await Promise.all([
     getTranslations("Workflow"),
@@ -27,6 +30,7 @@ export default async function CitiesPage({
       orderBy: [{ sortOrder: "asc" }, { nameFr: "asc" }],
     }),
   ]);
+  const mapped = cities.filter((city) => city.ozonCityId != null).length;
   return (
     <main>
       <WorkflowHeader
@@ -38,14 +42,29 @@ export default async function CitiesPage({
         }
         body={
           locale === "ar"
-            ? "حدّد رسوم كل مدينة وفعّل المدن المتاحة عند تسجيل الطلب."
-            : "Définissez le tarif de chaque ville et les destinations proposées à la commande."
+            ? "حدّد رسوم كل مدينة وزامن قائمة Ozon Express لضمان المدينة الصحيحة عند الإرسال."
+            : "Définissez les tarifs et synchronisez la liste Ozon Express pour envoyer avec la bonne ville."
         }
       />
       <FormNotice
         status={status}
-        messages={{ updated: t("statusUpdated"), invalid: t("invalid") }}
+        messages={{
+          updated: t("statusUpdated"),
+          invalid: t("invalid"),
+          "ozon-synced":
+            locale === "ar"
+              ? `تمت مزامنة ${count ?? mapped} مدينة من Ozon Express.`
+              : `${count ?? mapped} villes synchronisées depuis Ozon Express.`,
+        }}
       />
+      <form action={syncOzonCitiesAction} className="inline-create">
+        <input type="hidden" name="locale" value={locale} />
+        <button className="button button--secondary" type="submit">
+          {locale === "ar"
+            ? `مزامنة مدن Ozon (${mapped}/${cities.length})`
+            : `Synchroniser Ozon (${mapped}/${cities.length})`}
+        </button>
+      </form>
       <form action={saveCityAction} className="inline-create">
         <input type="hidden" name="locale" value={locale} />
         <label>
@@ -85,7 +104,9 @@ export default async function CitiesPage({
               <div>
                 <strong>{locale === "ar" ? city.nameAr : city.nameFr}</strong>
                 <span>
-                  {city.slug} ·{" "}
+                  {city.slug}
+                  {city.ozonCityId != null ? ` · Ozon #${city.ozonCityId}` : ""}
+                  {" · "}
                   {formatMoney(city.deliveryFee?.toString() ?? "0", locale)}
                 </span>
               </div>

@@ -82,6 +82,16 @@ enum DeliveryIntegrationStatus {
   PAUSED
 }
 
+enum DeliveryProvider {
+  NONE
+  OZON_EXPRESS
+}
+
+enum DeliveryNoteStatus {
+  DRAFT
+  SAVED
+}
+
 enum StockMovementType {
   ORDER_CONFIRM
   ORDER_RETURN
@@ -230,6 +240,7 @@ model User {
   conversationMemberships    ConversationParticipant[]
   chatMessages               ChatMessage[]
   announcementsCreated       Announcement[]               @relation("AnnouncementCreator")
+  deliveryNotesCreated       DeliveryNote[]               @relation("DeliveryNoteCreator")
 
   @@index([role, status])
   @@index([createdAt])
@@ -435,6 +446,8 @@ model City {
   nameFr      String
   nameAr      String
   slug        String        @unique
+  ozonCityId  Int?          @unique
+  ozonRef     String?
   deliveryFee Decimal?      @db.Decimal(12, 2)
   active      Boolean       @default(true)
   sortOrder   Int           @default(0)
@@ -444,6 +457,7 @@ model City {
   couriers    CourierCity[]
 
   @@index([active, sortOrder])
+  @@index([ozonRef])
 }
 
 model Cart {
@@ -496,6 +510,8 @@ model Order {
   confirmationReward  Decimal?             @db.Decimal(12, 2)
   courierId           String?
   parcelCode          String?
+  providerStatus      String?
+  deliveryNoteId      String?
   shipOn              DateTime?            @db.Date
   confirmedAt         DateTime?
   shippedAt           DateTime?
@@ -510,6 +526,7 @@ model Order {
   city                City                 @relation(fields: [cityId], references: [id], onDelete: Restrict)
   confirmationAgent   User?                @relation("ConfirmationAssignee", fields: [confirmationAgentId], references: [id], onDelete: SetNull)
   courier             Courier?             @relation(fields: [courierId], references: [id], onDelete: SetNull)
+  deliveryNote        DeliveryNote?        @relation(fields: [deliveryNoteId], references: [id], onDelete: SetNull)
   lines               OrderLine[]
   history             OrderStatusHistory[]
   callAttempts        CallAttempt[]
@@ -527,6 +544,8 @@ model Order {
   @@index([financeStatus, deliveredAt])
   @@index([confirmationAgentId, confirmationStatus])
   @@index([courierId, deliveryStatus])
+  @@index([parcelCode])
+  @@index([deliveryNoteId])
 }
 
 model StockMovement {
@@ -613,17 +632,43 @@ model Courier {
   id                String                    @id @default(cuid())
   name              String
   phone             String?
+  provider          DeliveryProvider          @default(NONE)
   integrationMode   DeliveryIntegrationMode   @default(MANUAL)
   integrationStatus DeliveryIntegrationStatus @default(NOT_CONFIGURED)
   externalAccountId String?
   apiBaseUrl        String?
+  apiKey            String?                   @db.Text
+  /// 0 = ramassage chez le vendeur, 1 = stock Ozon Express
+  stockMode         Int                       @default(0)
+  /// 1 = ouvrir le colis, 2 = ne pas ouvrir
+  allowOpen         Int                       @default(1)
+  webhookToken      String?                   @unique
   active            Boolean                   @default(true)
   createdAt         DateTime                  @default(now())
   updatedAt         DateTime                  @updatedAt
   orders            Order[]
   cities            CourierCity[]
+  deliveryNotes     DeliveryNote[]
 
   @@index([active, name])
+  @@index([provider, integrationStatus])
+}
+
+model DeliveryNote {
+  id          String             @id @default(cuid())
+  courierId   String
+  externalRef String
+  status      DeliveryNoteStatus @default(DRAFT)
+  createdById String?
+  savedAt     DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  courier     Courier            @relation(fields: [courierId], references: [id], onDelete: Cascade)
+  createdBy   User?              @relation("DeliveryNoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  orders      Order[]
+
+  @@unique([courierId, externalRef])
+  @@index([status, createdAt])
 }
 
 model CourierCity {

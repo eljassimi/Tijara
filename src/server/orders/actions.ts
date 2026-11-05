@@ -344,6 +344,105 @@ export async function deliveryHandoffAction(formData: FormData) {
   revalidatePath(`/${locale}/admin`);
 }
 
+export async function bulkDeliveryHandoffAction(formData: FormData) {
+  const locale = localeFrom(formData);
+  const user = await requirePermission(locale, "orders:deliver");
+  const courierId = String(formData.get("courierId") ?? "").trim();
+  const orderIds = formData
+    .getAll("orderIds")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  if (!courierId)
+    redirect(`/${locale}/admin/logistics?status=handoff-company-required`);
+  if (!orderIds.length)
+    redirect(`/${locale}/admin/logistics?status=bulk-empty`);
+
+  const { bulkSendOrdersViaOzon, isOzonCourier } = await import(
+    "@/server/delivery/ozon-express/service"
+  );
+  const { prisma } = await import("@/lib/prisma");
+  const courier = await prisma.courier.findFirst({
+    where: { id: courierId, active: true },
+  });
+  if (!courier) redirect(`/${locale}/admin/logistics?status=handoff-company-inactive`);
+
+  if (isOzonCourier(courier)) {
+    const results = await bulkSendOrdersViaOzon(
+      { id: user.id, role: user.role },
+      orderIds,
+      courierId,
+    );
+    const ok = results.filter((item) => item.ok).length;
+    const failed = results.length - ok;
+    revalidatePath(`/${locale}/admin/logistics`);
+    redirect(
+      `/${locale}/admin/logistics?status=bulk-done&ok=${ok}&failed=${failed}`,
+    );
+  }
+
+  let ok = 0;
+  let failed = 0;
+  for (const orderId of orderIds) {
+    try {
+      await markOrderSentToDeliveryCompany(
+        { id: user.id, role: user.role },
+        orderId,
+        { courierId },
+      );
+      ok += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  revalidatePath(`/${locale}/admin/logistics`);
+  redirect(
+    `/${locale}/admin/logistics?status=bulk-done&ok=${ok}&failed=${failed}`,
+  );
+}
+
+export async function createDeliveryNoteAction(formData: FormData) {
+  const locale = localeFrom(formData);
+  const user = await requirePermission(locale, "orders:deliver");
+  const courierId = String(formData.get("courierId") ?? "").trim();
+  const orderIds = formData
+    .getAll("orderIds")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  if (!courierId || !orderIds.length)
+    redirect(`/${locale}/admin/logistics?status=bl-invalid`);
+  try {
+    const { createDeliveryNoteForOrders } = await import(
+      "@/server/delivery/ozon-express/service"
+    );
+    const result = await createDeliveryNoteForOrders(
+      { id: user.id, role: user.role },
+      courierId,
+      orderIds,
+      { save: formData.get("save") !== "0" },
+    );
+    revalidatePath(`/${locale}/admin/logistics`);
+    redirect(
+      `/${locale}/admin/logistics?status=bl-created&ref=${encodeURIComponent(result.note.externalRef)}&pdf=${encodeURIComponent(result.pdf.standard)}`,
+    );
+  } catch (error) {
+    const result = handoffStatusFromError(error);
+    redirect(`/${locale}/admin/logistics?status=${result.status}`);
+  }
+}
+
+export async function syncOzonTrackingAction(formData: FormData) {
+  const locale = localeFrom(formData);
+  await requirePermission(locale, "orders:deliver");
+  const { syncOzonTrackingForOpenOrders } = await import(
+    "@/server/delivery/ozon-express/service"
+  );
+  const result = await syncOzonTrackingForOpenOrders();
+  revalidatePath(`/${locale}/admin/logistics`);
+  redirect(
+    `/${locale}/admin/logistics?status=tracking-synced&checked=${result.checked}&updated=${result.updated}`,
+  );
+}
+
 export async function financeTransitionAction(formData: FormData) {
   const locale = localeFrom(formData);
   const user = await requirePermission(locale, "finance:manage");

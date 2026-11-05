@@ -657,13 +657,33 @@ export async function markOrderSentToDeliveryCompany(
   if (!("SUPER_ADMIN" === actor.role || "CONFIRMATION_AGENT" === actor.role))
     throw new HandoffError("forbidden");
   if (!options.courierId?.trim()) throw new HandoffError("company-required");
+
+  const company = await prisma.courier.findFirst({
+    where: { id: options.courierId, active: true },
+  });
+  if (!company) throw new HandoffError("company-inactive");
+
+  // API-connected Ozon Express: create the parcel remotely and store tracking.
+  if (
+    company.provider === "OZON_EXPRESS" &&
+    company.integrationMode === "API" &&
+    company.integrationStatus === "CONNECTED"
+  ) {
+    const order = await prisma.order.findUniqueOrThrow({
+      where: { id: orderId },
+    });
+    assertConfirmationAssignmentAccess(actor, order);
+    const { sendOrderViaOzon } = await import(
+      "@/server/delivery/ozon-express/service"
+    );
+    return sendOrderViaOzon(actor, orderId, company.id, {
+      note: options.note,
+    });
+  }
+
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
     assertConfirmationAssignmentAccess(actor, order);
-    const company = await tx.courier.findFirst({
-      where: { id: options.courierId, active: true },
-    });
-    if (!company) throw new HandoffError("company-inactive");
     if (order.confirmationStatus !== "CONFIRMED")
       throw new HandoffError("not-confirmed");
     if (["DELIVERED", "RETURNED", "REFUSED"].includes(order.deliveryStatus))
@@ -683,8 +703,6 @@ export async function markOrderSentToDeliveryCompany(
         throw new HandoffError("duplicate-parcel", duplicateParcel.code);
     }
 
-    // Until a provider adapter is connected, every handoff is explicitly
-    // recorded by the confirmation team. A future adapter can set SYNCED.
     const syncStatus: DeliverySyncStatus = "SENT_MANUALLY";
     const updated = await tx.order.update({
       where: { id: order.id },
