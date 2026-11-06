@@ -163,13 +163,6 @@ export function CartDrawer({
 
             {items.length ? (
               <footer className="cart-drawer__footer">
-                <button
-                  type="button"
-                  className="button button--ghost"
-                  onClick={() => setOpen(false)}
-                >
-                  {locale === "ar" ? "متابعة التسوّق" : "Continuer vos achats"}
-                </button>
                 <Link
                   className="button button--primary"
                   href="/app/partner/cart"
@@ -177,6 +170,13 @@ export function CartDrawer({
                 >
                   {locale === "ar" ? "إتمام الطلب" : "Passer commande"}
                 </Link>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => setOpen(false)}
+                >
+                  {locale === "ar" ? "متابعة التسوّق" : "Continuer vos achats"}
+                </button>
               </footer>
             ) : null}
           </aside>
