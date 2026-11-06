@@ -6212,3 +6212,170 @@ a.announcement-banner:hover {
     justify-self: stretch;
   }
 }
+
+/* Ozon BL print dock — bulk print strip, not per-order links */
+.bl-print-dock {
+  display: grid;
+  gap: 14px;
+  margin-block-start: 14px;
+  padding: 16px;
+  border: 1px solid var(--clay);
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgb(59 59 245 / 0.06), transparent 42%),
+    repeating-linear-gradient(
+      -12deg,
+      transparent,
+      transparent 10px,
+      rgb(20 18 58 / 0.02) 10px,
+      rgb(20 18 58 / 0.02) 11px
+    ),
+    var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+.bl-print-dock__intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--majorelle);
+}
+.bl-print-dock__intro > div {
+  display: grid;
+  gap: 2px;
+}
+.bl-print-dock__intro strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+.bl-print-dock__intro p {
+  margin: 0;
+  color: var(--muted-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+.bl-print-dock__list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bl-print-dock__note {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--clay);
+  border-radius: 16px;
+  background: rgb(255 255 255 / 0.72);
+}
+.bl-print-dock__note--active {
+  border-color: rgb(59 59 245 / 0.45);
+  box-shadow: 0 0 0 3px rgb(59 59 245 / 0.12);
+}
+.bl-print-dock__meta {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.bl-print-dock__ref {
+  display: grid;
+  gap: 2px;
+}
+.bl-print-dock__ref span {
+  color: var(--majorelle);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.bl-print-dock__ref strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.bl-print-dock__meta > p {
+  margin: 0;
+  color: var(--muted-ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+.bl-print-dock__parcels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.bl-print-dock__parcels span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgb(20 18 58 / 0.06);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.bl-print-dock__formats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+}
+.bl-print-format {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+  min-height: 74px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  text-decoration: none;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.bl-print-format span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.bl-print-format strong {
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+}
+.bl-print-format small {
+  color: inherit;
+  opacity: 0.78;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.bl-print-format:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgb(20 18 58 / 0.1);
+}
+.bl-print-format--standard {
+  border-color: rgb(59 59 245 / 0.18);
+  background: rgb(59 59 245 / 0.08);
+  color: #2a2ad1;
+}
+.bl-print-format--ticketsA4 {
+  border-color: rgb(14 140 110 / 0.2);
+  background: rgb(25 195 156 / 0.1);
+  color: #076f59;
+}
+.bl-print-format--tickets10x10 {
+  border-color: rgb(196 120 20 / 0.22);
+  background: rgb(255 186 73 / 0.16);
+  color: #8a5900;
+}
+@media (max-width: 900px) {
+  .bl-print-dock__note {
+    grid-template-columns: 1fr;
+  }
+  .bl-print-dock__formats {
+    grid-template-columns: 1fr;
+  }
+}

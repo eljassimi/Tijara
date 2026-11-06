@@ -9,6 +9,7 @@ import { getTranslations } from "next-intl/server";
 import type { DeliveryStatus, Prisma } from "@prisma/client";
 
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { DeliveryNotePrintDock } from "@/components/logistics/delivery-note-print-dock";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { OperationsPagination } from "@/components/ui/operations-pagination";
@@ -38,7 +39,6 @@ import {
   syncOzonTrackingAction,
 } from "@/server/orders/actions";
 import { deliveryTransitions } from "@/server/orders/state-machine";
-import { ozonDeliveryNotePdfUrls } from "@/server/delivery/ozon-express/client";
 import { isOzonCourier } from "@/server/delivery/ozon-express/service";
 
 const PAGE_SIZE = 12;
@@ -125,7 +125,6 @@ export default async function LogisticsPage({
   const orderInclude = {
     city: true,
     courier: true,
-    deliveryNote: true,
     lines: { include: orderLineInclude },
   };
 
@@ -194,6 +193,7 @@ export default async function LogisticsPage({
     historyOrders,
     historyTotal,
     pendingDeliveryNote,
+    openDeliveryNotes,
   ] = await Promise.all([
     getTranslations("Workflow"),
     prisma.order.findMany({
@@ -251,6 +251,31 @@ export default async function LogisticsPage({
       include: { city: true, courier: true },
       orderBy: { sentToCourierAt: "asc" },
       take: 100,
+    }),
+    prisma.deliveryNote.findMany({
+      where: {
+        courier: { provider: "OZON_EXPRESS", active: true },
+        orders: {
+          some: {
+            ...assignmentScope,
+            deliverySyncStatus: "SYNCED",
+            deliveryStatus: { in: ["AWAITING_PICKUP", "IN_TRANSIT"] },
+          },
+        },
+      },
+      include: {
+        courier: { select: { name: true } },
+        orders: {
+          where: {
+            ...assignmentScope,
+            deliveryStatus: { in: ["AWAITING_PICKUP", "IN_TRANSIT"] },
+          },
+          select: { id: true, code: true, parcelCode: true },
+          orderBy: { sentToCourierAt: "asc" },
+        },
+      },
+      orderBy: [{ savedAt: "desc" }, { createdAt: "desc" }],
+      take: 12,
     }),
   ]);
   const readyTotal = metrics.filter((order) =>
@@ -385,8 +410,8 @@ export default async function LogisticsPage({
               : `Envoi groupé : ${query.ok ?? 0} OK · ${query.failed ?? 0} échec(s)`,
           "bl-created":
             locale === "ar"
-              ? `تم إنشاء بون التسليم ${query.ref || ""}.`
-              : `Bon de livraison ${query.ref || ""} créé.`,
+              ? `تم إنشاء بون التسليم ${query.ref || ""}. اطبع البون أو الملصقات من قسم الطباعة.`
+              : `Bon de livraison ${query.ref || ""} créé. Imprimez le bon ou les stickers depuis la zone d’impression.`,
           "bl-invalid":
             locale === "ar"
               ? "اختر الشركة والطلبات لإنشاء بون التسليم."
@@ -709,15 +734,17 @@ export default async function LogisticsPage({
       ) : null}
 
       {ozonCompanies.length ? (
-        <section className="operations-section">
+        <section className="operations-section" id="bons-de-livraison">
           <div className="operations-section__heading">
             <div>
               <span>Ozon Express</span>
               <h2>
-                {locale === "ar" ? "بون التسليم" : "Bon de livraison"}
+                {locale === "ar" ? "بون التسليم والطباعة" : "Bons & impression"}
               </h2>
             </div>
-            <small>{pendingDeliveryNote.length}</small>
+            <small>
+              {pendingDeliveryNote.length || openDeliveryNotes.length}
+            </small>
           </div>
           {pendingDeliveryNote.length ? (
             <>
@@ -775,13 +802,26 @@ export default async function LogisticsPage({
                 ))}
               </ul>
             </>
-          ) : (
+          ) : openDeliveryNotes.length ? null : (
             <p className="queue-empty">
               {locale === "ar"
-                ? "كل الطرود المتزامنة مربوطة ببون تسليم. سيظهر زر الإنشاء عند إرسال طلبات جديدة إلى Ozon."
-                : "Tous les colis synchronisés ont déjà un bon de livraison. Le bouton de création réapparaît dès que de nouvelles commandes sont envoyées à Ozon."}
+                ? "لا يوجد بون للطباعة بعد. سيظهر هنا بعد إرسال الطلبات إلى Ozon."
+                : "Aucun bon à imprimer pour l’instant. Cette zone apparaît après l’envoi des commandes à Ozon."}
             </p>
           )}
+          <DeliveryNotePrintDock
+            locale={locale}
+            highlightRef={query.ref}
+            notes={openDeliveryNotes.map((note) => ({
+              id: note.id,
+              externalRef: note.externalRef,
+              status: note.status,
+              createdAt: note.createdAt,
+              savedAt: note.savedAt,
+              courierName: note.courier.name,
+              orders: note.orders,
+            }))}
+          />
         </section>
       ) : null}
 
@@ -833,24 +873,6 @@ export default async function LogisticsPage({
                         ? ` · ${order.providerStatus}`
                         : ""}
                     </span>
-                    {order.deliveryNote ? (
-                      <span>
-                        {locale === "ar" ? "بون التسليم" : "Bon de livraison"}{" "}
-                        <strong>{order.deliveryNote.externalRef}</strong>
-                        {" · "}
-                        <a
-                          href={
-                            ozonDeliveryNotePdfUrls(
-                              order.deliveryNote.externalRef,
-                            ).standard
-                          }
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          PDF
-                        </a>
-                      </span>
-                    ) : null}
                   </div>
                   <div className="operations-card__items">
                     <ul>

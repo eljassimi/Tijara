@@ -437,7 +437,7 @@ export async function createDeliveryNoteAction(formData: FormData) {
   }
   revalidatePath(`/${locale}/admin/logistics`);
   redirect(
-    `/${locale}/admin/logistics?status=bl-created&ref=${encodeURIComponent(result.note.externalRef)}&pdf=${encodeURIComponent(result.pdf.standard)}`,
+    `/${locale}/admin/logistics?status=bl-created&ref=${encodeURIComponent(result.note.externalRef)}#bons-de-livraison`,
   );
 }
 
