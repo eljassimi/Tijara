@@ -109,7 +109,7 @@ export async function addToCartAction(formData: FormData) {
   }
   revalidatePath(`/${locale}/app/partner`, "layout");
   redirect(
-    `/${locale}/app/partner/products/${parsed.data.returnSlug}?status=added`,
+    `/${locale}/app/partner/products/${parsed.data.returnSlug}?status=added&cart=open`,
   );
 }
 
@@ -157,6 +157,14 @@ export async function updateCartItemAction(formData: FormData) {
   redirect(`/${locale}/app/partner/cart?status=updated`);
 }
 
+function safePartnerReturnTo(locale: string, raw: FormDataEntryValue | null) {
+  const value = String(raw ?? "").trim();
+  const prefix = `/${locale}/app/partner`;
+  if (!value.startsWith(prefix)) return null;
+  if (value.includes("//") || value.includes("\\")) return null;
+  return value;
+}
+
 export async function removeCartItemAction(formData: FormData) {
   const locale = localeFrom(formData);
   const user = await requirePermission(locale, "orders:create");
@@ -172,6 +180,12 @@ export async function removeCartItemAction(formData: FormData) {
     },
   });
   revalidatePath(`/${locale}/app/partner`, "layout");
+  const returnTo = safePartnerReturnTo(locale, formData.get("returnTo"));
+  if (returnTo) {
+    const url = new URL(returnTo, "https://tijara.local");
+    url.searchParams.set("cart", "open");
+    redirect(`${url.pathname}${url.search}`);
+  }
   redirect(`/${locale}/app/partner/cart?status=updated`);
 }
 

@@ -1,10 +1,16 @@
 import type { LucideIcon } from "lucide-react";
-import { Bell, ChevronDown, LogOut, Menu, ShoppingBag } from "lucide-react";
+import { Bell, LogOut, Menu } from "lucide-react";
+import { Suspense } from "react";
 
 import { Logo } from "@/components/brand/logo";
 import { ActiveLink } from "@/components/active-link";
+import {
+  CartDrawer,
+  type CartDrawerItem,
+} from "@/components/cart/cart-drawer";
 import { LiveChatBadge } from "@/components/chat/live-badge";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { ProfileMenu } from "@/components/profile-menu";
 import { RouteClosingDetails } from "@/components/route-closing-details";
 import { Link } from "@/i18n/navigation";
 import { logoutAction } from "@/server/auth/actions";
@@ -26,6 +32,7 @@ type AppShellProps = {
   children: React.ReactNode;
   showCart?: boolean;
   cartCount?: number;
+  cartItems?: CartDrawerItem[];
   notificationCount?: number;
   notificationHref: string;
   locale: string;
@@ -39,18 +46,13 @@ export function AppShell({
   children,
   showCart = false,
   cartCount = 0,
+  cartItems = [],
   notificationCount = 0,
   notificationHref,
   locale,
   logoutLabel,
   userName,
 }: AppShellProps) {
-  const initials = userName
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
   const logout = logoutAction.bind(null, locale);
   const navigationHrefs = items.map((item) => item.href);
   const requestedMobileItems = items.filter((item) => item.mobilePrimary);
@@ -81,7 +83,6 @@ export function AppShell({
             </ActiveLink>
           ))}
         </nav>
-        <div className="app-sidebar__motif" aria-hidden="true" />
       </aside>
       <div className="app-main">
         <header className="app-header">
@@ -118,24 +119,26 @@ export function AppShell({
             <Bell size={19} />
             {notificationCount > 0 && <span>{notificationCount}</span>}
           </Link>
-          {showCart && (
-            <Link
-              className="icon-button cart-link"
-              href="/app/partner/cart"
-              aria-label="Cart"
+          {showCart ? (
+            <Suspense
+              fallback={
+                <span className="icon-button cart-link" aria-hidden>
+                  <span className="cart-link__placeholder" />
+                </span>
+              }
             >
-              <ShoppingBag size={19} />
-              {cartCount > 0 && <span>{cartCount}</span>}
-            </Link>
-          )}
-          <div className="profile-block">
-            <span className="profile-name">{userName}</span>
-            <span className="profile-avatar">{initials}</span>
-            <ChevronDown size={15} />
-            <form action={logout}>
-              <button type="submit">{logoutLabel}</button>
-            </form>
-          </div>
+              <CartDrawer
+                locale={locale === "ar" ? "ar" : "fr"}
+                items={cartItems}
+                cartCount={cartCount}
+              />
+            </Suspense>
+          ) : null}
+          <ProfileMenu
+            locale={locale}
+            userName={userName}
+            logoutLabel={logoutLabel}
+          />
         </header>
         <div className="app-content">{children}</div>
       </div>

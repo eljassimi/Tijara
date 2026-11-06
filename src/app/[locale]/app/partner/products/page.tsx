@@ -125,6 +125,11 @@ export default async function ProductsPage({
             );
             return (
               <article className="product-card" key={product.id}>
+                <Link
+                  className="product-card__stretch"
+                  href={`/app/partner/products/${product.slug}`}
+                  aria-label={displayName}
+                />
                 <div
                   className={`product-card__visual product-visual--${index % 6}`}
                 >

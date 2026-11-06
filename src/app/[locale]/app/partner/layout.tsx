@@ -13,6 +13,7 @@ import {
 import { getTranslations } from "next-intl/server";
 
 import { AppShell, type ShellItem } from "@/components/app-shell";
+import { formatMoney } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { affiliateIdFor } from "@/server/orders/service";
 import { requireRole, sessionUserCan } from "@/server/auth/session";
@@ -38,10 +39,39 @@ export default async function PartnerLayout({
         createdById: user.id,
       },
     },
-    include: { items: true },
+    include: {
+      items: {
+        include: {
+          product: {
+            include: {
+              images: { orderBy: { sortOrder: "asc" }, take: 1 },
+            },
+          },
+          variant: true,
+        },
+        orderBy: { createdAt: "desc" },
+      },
+    },
   });
   const cartCount =
     cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+  const cartItems =
+    cart?.items.map((item) => {
+      const unitSale = Number(item.customSalePrice ?? item.product.salePrice);
+      return {
+        id: item.id,
+        name: cleanDemoLabel(
+          locale === "ar"
+            ? item.product.nameAr || item.product.nameFr
+            : item.product.nameFr,
+        ),
+        quantity: item.quantity,
+        size: item.variant.size,
+        color: item.variant.color,
+        imageUrl: item.product.images[0]?.url ?? null,
+        priceLabel: formatMoney(String(unitSale), locale === "ar" ? "ar" : "fr"),
+      };
+    }) ?? [];
   const [notificationCount, chatUnread] = await Promise.all([
     prisma.notification.count({
       where: { userId: user.id, readAt: null },
@@ -127,6 +157,7 @@ export default async function PartnerLayout({
       items={items}
       showCart
       cartCount={cartCount}
+      cartItems={cartItems}
       notificationCount={notificationCount}
       notificationHref="/app/partner/notifications"
       locale={locale}

@@ -2,9 +2,8 @@ import {
   ArrowLeft,
   Coins,
   Download,
-  FolderOpen,
   PlayCircle,
-  ShoppingBag,
+  ShoppingCart,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -115,19 +114,6 @@ export default async function ProductDetailPage({
               label={locale === "ar" ? "نسخ الوصف" : "Copier la description"}
               copiedLabel={locale === "ar" ? "تم النسخ" : "Description copiée"}
             />
-            {product.mediaDriveUrl && (
-              <a
-                className="button"
-                href={product.mediaDriveUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <FolderOpen size={17} />
-                {locale === "ar"
-                  ? "فتح مجلد الصور والفيديوهات"
-                  : "Ouvrir le dossier photos et vidéos"}
-              </a>
-            )}
             {product.images.length > 0 && (
               <a className="button" href={`/api/products/${product.id}/images`}>
                 <Download size={17} />
@@ -191,7 +177,7 @@ export default async function ProductDetailPage({
                 </label>
               )}
               <button className="button button--primary" type="submit">
-                <ShoppingBag size={17} />
+                <ShoppingCart size={17} />
                 {t("orderNow")}
               </button>
             </form>
