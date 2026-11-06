@@ -225,9 +225,14 @@ describe("ozon express client", () => {
     expect(extractProviderStatus({ STATUS: "DELIVERED" })).toBe("DELIVERED");
   });
 
-  it("builds delivery note PDF URLs", () => {
+  it("builds delivery note PDF URLs on the ozoneexpress client host", () => {
     const urls = ozonDeliveryNotePdfUrls("BL240115001");
-    expect(urls.standard).toContain("dn-ref=BL240115001");
+    expect(urls.standard).toBe(
+      "https://client.ozoneexpress.ma/pdf-delivery-note?dn-ref=BL240115001",
+    );
+    expect(urls.ticketsA4).toContain(
+      "https://client.ozoneexpress.ma/pdf-delivery-note-tickets?dn-ref=",
+    );
     expect(urls.tickets10x10).toContain("pdf-delivery-note-tickets-4-4");
   });
 

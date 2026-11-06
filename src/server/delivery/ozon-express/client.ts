@@ -7,7 +7,8 @@ import type {
 } from "./types";
 
 const DEFAULT_API_ORIGIN = "https://api.ozonexpress.ma";
-const DEFAULT_PDF_ORIGIN = "https://client.ozonexpress.ma";
+// Official docs use ozoneexpress (extra "e") for the client PDF host.
+const DEFAULT_PDF_ORIGIN = "https://client.ozoneexpress.ma";
 
 export class OzonExpressError extends Error {
   readonly status: number;
