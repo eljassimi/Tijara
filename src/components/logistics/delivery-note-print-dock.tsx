@@ -25,6 +25,33 @@ function asDate(value: Date | string | null | undefined) {
   return value instanceof Date ? value : new Date(value);
 }
 
+function parcelCountLabel(count: number, locale: "fr" | "ar") {
+  if (locale === "ar") {
+    return count === 1 ? "1 طرد" : `${count} طرود`;
+  }
+  return count === 1 ? "1 colis" : `${count} colis`;
+}
+
+function friendlyNoteLabel(
+  note: DeliveryNotePrintItem,
+  index: number,
+  locale: "fr" | "ar",
+) {
+  const stamp = asDate(note.savedAt) ?? asDate(note.createdAt);
+  const count = parcelCountLabel(note.orders.length, locale);
+  const when = stamp ? formatAppDateTime(stamp, locale) : null;
+  const rank = index + 1;
+
+  if (locale === "ar") {
+    return when
+      ? `بون ${rank} · ${when} · ${count}`
+      : `بون ${rank} · ${count}`;
+  }
+  return when
+    ? `Bon ${rank} · ${when} · ${count}`
+    : `Bon ${rank} · ${count}`;
+}
+
 export function DeliveryNotePrintDock({
   locale,
   notes,
@@ -50,33 +77,28 @@ export function DeliveryNotePrintDock({
     setSelectedId(initialId);
   }, [initialId]);
 
+  const selectedIndex = notes.findIndex((note) => note.id === selectedId);
   const selected =
-    notes.find((note) => note.id === selectedId) ?? notes[0] ?? null;
+    (selectedIndex >= 0 ? notes[selectedIndex] : notes[0]) ?? null;
 
   if (!selected) return null;
 
   const pdfs = ozonDeliveryNotePdfUrls(selected.externalRef);
   const when = asDate(selected.savedAt) ?? asDate(selected.createdAt);
-  const options = notes.map((note) => {
-    const stamp = asDate(note.savedAt) ?? asDate(note.createdAt);
-    const count =
-      locale === "ar"
-        ? `${note.orders.length} طرد`
-        : `${note.orders.length} colis`;
-    const dateBit = stamp ? ` · ${formatAppDateTime(stamp, locale)}` : "";
-    return {
-      value: note.id,
-      label: `${note.externalRef} · ${count}${dateBit}`,
-    };
-  });
+  const options = notes.map((note, index) => ({
+    value: note.id,
+    label: friendlyNoteLabel(note, index, locale),
+    // Keep the Ozon ref searchable for support, without showing it as the title.
+    keywords: note.externalRef,
+  }));
 
   return (
     <div className="bl-print-bar filter-bar operations-filter-bar">
       <div className="queue-form-field bl-print-bar__select">
-        <span>{locale === "ar" ? "البون" : "Bon à imprimer"}</span>
+        <span>{locale === "ar" ? "أي بون تطبع؟" : "Quel bon imprimer ?"}</span>
         <CustomSelect
           name="deliveryNoteId"
-          label={locale === "ar" ? "البون" : "Bon à imprimer"}
+          label={locale === "ar" ? "أي بون تطبع؟" : "Quel bon imprimer ?"}
           locale={locale}
           value={selected.id}
           onValueChange={setSelectedId}
@@ -86,20 +108,14 @@ export function DeliveryNotePrintDock({
       </div>
 
       <div className="bl-print-bar__meta">
-        <span>
-          {locale === "ar"
-            ? `${selected.orders.length} طرد`
-            : `${selected.orders.length} colis`}
+        <strong>
+          {parcelCountLabel(selected.orders.length, locale)}
           {when ? ` · ${formatAppDateTime(when, locale)}` : ""}
-        </span>
-        <small className="bl-print-bar__parcels" dir="ltr">
-          {selected.orders
-            .slice(0, 5)
-            .map((order) => order.parcelCode || order.code)
-            .join(" · ")}
-          {selected.orders.length > 5
-            ? ` · +${selected.orders.length - 5}`
-            : ""}
+        </strong>
+        <small>
+          {locale === "ar"
+            ? "اختر الصيغة ثم اطبع"
+            : "Choisissez le format, puis imprimez"}
         </small>
       </div>
 
@@ -110,7 +126,7 @@ export function DeliveryNotePrintDock({
           target="_blank"
           rel="noreferrer"
         >
-          {locale === "ar" ? "بون A4" : "Bon A4"}
+          {locale === "ar" ? "قائمة A4" : "Liste A4"}
         </a>
         <a
           className="button button--ghost button--compact"
@@ -126,7 +142,7 @@ export function DeliveryNotePrintDock({
           target="_blank"
           rel="noreferrer"
         >
-          {locale === "ar" ? "10×10" : "Stickers 10×10"}
+          {locale === "ar" ? "ملصقات 10×10" : "Stickers 10×10"}
         </a>
       </div>
     </div>
