@@ -272,6 +272,10 @@ export default async function ConfirmationPage({
             locale === "ar"
               ? "تم حفظ نتيجة المكالمة."
               : "Le résultat de l’appel a été enregistré.",
+          "confirmed-sent":
+            locale === "ar"
+              ? "تم تأكيد الطلب وإرساله تلقائياً إلى Ozon Express عند الإمكان."
+              : "Commande confirmée et envoyée automatiquement à Ozon Express si possible.",
           assigned:
             locale === "ar"
               ? "تم تغيير مؤكد الطلب."

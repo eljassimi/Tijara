@@ -38,6 +38,7 @@ import {
   syncOzonTrackingAction,
 } from "@/server/orders/actions";
 import { deliveryTransitions } from "@/server/orders/state-machine";
+import { ozonDeliveryNotePdfUrls } from "@/server/delivery/ozon-express/client";
 import { isOzonCourier } from "@/server/delivery/ozon-express/service";
 
 const PAGE_SIZE = 12;
@@ -124,6 +125,7 @@ export default async function LogisticsPage({
   const orderInclude = {
     city: true,
     courier: true,
+    deliveryNote: true,
     lines: { include: orderLineInclude },
   };
 
@@ -706,7 +708,7 @@ export default async function LogisticsPage({
       </section>
       ) : null}
 
-      {pendingDeliveryNote.length && ozonCompanies.length ? (
+      {ozonCompanies.length ? (
         <section className="operations-section">
           <div className="operations-section__heading">
             <div>
@@ -717,56 +719,69 @@ export default async function LogisticsPage({
             </div>
             <small>{pendingDeliveryNote.length}</small>
           </div>
-          <PreserveScrollForm
-            action={createDeliveryNoteAction}
-            className="filter-bar operations-filter-bar"
-          >
-            <input type="hidden" name="locale" value={locale} />
-            <input type="hidden" name="save" value="1" />
-            {pendingDeliveryNote.map((order) => (
-              <input
-                key={`bl-${order.id}`}
-                type="hidden"
-                name="orderIds"
-                value={order.id}
-              />
-            ))}
-            <div className="queue-form-field">
-              <span>{locale === "ar" ? "الشركة" : "Société"}</span>
-              <CustomSelect
-                name="courierId"
-                label={t("courier")}
-                locale={locale}
-                defaultValue={
-                  pendingDeliveryNote[0]?.courierId || defaultOzonCourierId
-                }
-                options={ozonCompanies.map((company) => ({
-                  value: company.id,
-                  label: company.name,
-                }))}
-                required
-              />
-            </div>
-            <button
-              className="button button--primary button--compact"
-              type="submit"
-            >
+          {pendingDeliveryNote.length ? (
+            <>
+              <PreserveScrollForm
+                action={createDeliveryNoteAction}
+                className="filter-bar operations-filter-bar"
+              >
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="save" value="1" />
+                {pendingDeliveryNote.map((order) => (
+                  <input
+                    key={`bl-${order.id}`}
+                    type="hidden"
+                    name="orderIds"
+                    value={order.id}
+                  />
+                ))}
+                <div className="queue-form-field">
+                  <span>{locale === "ar" ? "الشركة" : "Société"}</span>
+                  <CustomSelect
+                    name="courierId"
+                    label={t("courier")}
+                    locale={locale}
+                    defaultValue={
+                      pendingDeliveryNote[0]?.courierId || defaultOzonCourierId
+                    }
+                    options={ozonCompanies.map((company) => ({
+                      value: company.id,
+                      label: company.name,
+                    }))}
+                    required
+                  />
+                </div>
+                <button
+                  className="button button--primary button--compact"
+                  type="submit"
+                >
+                  {locale === "ar"
+                    ? `إنشاء بون التسليم (${pendingDeliveryNote.length})`
+                    : `Créer le bon de livraison (${pendingDeliveryNote.length})`}
+                </button>
+              </PreserveScrollForm>
+              <ul
+                className="queue-empty"
+                style={{ listStyle: "none", padding: 0 }}
+              >
+                {pendingDeliveryNote.slice(0, 12).map((order) => (
+                  <li key={order.id}>
+                    <strong>{order.code}</strong>
+                    {" · "}
+                    {order.parcelCode}
+                    {" · "}
+                    {locale === "ar" ? order.city.nameAr : order.city.nameFr}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="queue-empty">
               {locale === "ar"
-                ? `إنشاء بون التسليم (${pendingDeliveryNote.length})`
-                : `Créer le bon de livraison (${pendingDeliveryNote.length})`}
-            </button>
-          </PreserveScrollForm>
-          <ul className="queue-empty" style={{ listStyle: "none", padding: 0 }}>
-            {pendingDeliveryNote.slice(0, 12).map((order) => (
-              <li key={order.id}>
-                <strong>{order.code}</strong>
-                {" · "}
-                {order.parcelCode}
-                {" · "}
-                {locale === "ar" ? order.city.nameAr : order.city.nameFr}
-              </li>
-            ))}
-          </ul>
+                ? "كل الطرود المتزامنة مربوطة ببون تسليم. سيظهر زر الإنشاء عند إرسال طلبات جديدة إلى Ozon."
+                : "Tous les colis synchronisés ont déjà un bon de livraison. Le bouton de création réapparaît dès que de nouvelles commandes sont envoyées à Ozon."}
+            </p>
+          )}
         </section>
       ) : null}
 
@@ -818,6 +833,24 @@ export default async function LogisticsPage({
                         ? ` · ${order.providerStatus}`
                         : ""}
                     </span>
+                    {order.deliveryNote ? (
+                      <span>
+                        {locale === "ar" ? "بون التسليم" : "Bon de livraison"}{" "}
+                        <strong>{order.deliveryNote.externalRef}</strong>
+                        {" · "}
+                        <a
+                          href={
+                            ozonDeliveryNotePdfUrls(
+                              order.deliveryNote.externalRef,
+                            ).standard
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          PDF
+                        </a>
+                      </span>
+                    ) : null}
                   </div>
                   <div className="operations-card__items">
                     <ul>

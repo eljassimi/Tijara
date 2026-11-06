@@ -560,6 +560,20 @@ export async function changeConfirmationStatus(
       },
     });
     return updated;
+  }).then(async (updated) => {
+    // Confirm first, then push to Ozon. Failures stay on the order as FAILED
+    // so logistics can retry without undoing confirmation.
+    if (to === "CONFIRMED") {
+      try {
+        const { autoSendConfirmedOrderToOzon } = await import(
+          "@/server/delivery/ozon-express/service"
+        );
+        await autoSendConfirmedOrderToOzon(actor, orderId);
+      } catch (error) {
+        console.error("autoSendConfirmedOrderToOzon failed", orderId, error);
+      }
+    }
+    return updated;
   });
 }
 

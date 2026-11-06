@@ -60,6 +60,76 @@ export function credentialsFromCourier(
   };
 }
 
+/** Prefer the single connected Ozon Express API courier for auto-handoff. */
+export async function findDefaultOzonCourier() {
+  return prisma.courier.findFirst({
+    where: {
+      active: true,
+      provider: "OZON_EXPRESS",
+      integrationMode: "API",
+      integrationStatus: "CONNECTED",
+      externalAccountId: { not: null },
+      apiKey: { not: null },
+    },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "asc" }],
+  });
+}
+
+/**
+ * After confirmation: push the parcel to Ozon Express without blocking the
+ * confirmator if the API fails (order stays FAILED for manual retry).
+ * On success, also create/save a delivery note so pickup paperwork exists.
+ */
+export async function autoSendConfirmedOrderToOzon(
+  actor: Actor,
+  orderId: string,
+) {
+  const courier = await findDefaultOzonCourier();
+  if (!courier) {
+    return { ok: false as const, reason: "no-courier" as const };
+  }
+  try {
+    const updated = await sendOrderViaOzon(actor, orderId, courier.id, {
+      note: "Envoi automatique après confirmation",
+    });
+    let deliveryNoteRef: string | undefined;
+    try {
+      const note = await createDeliveryNoteForOrders(
+        actor,
+        courier.id,
+        [orderId],
+        { save: true },
+      );
+      deliveryNoteRef = note.note.externalRef;
+    } catch (noteError) {
+      // Parcel is already on Ozon; BL can be created later from logistics.
+      console.error(
+        "autoCreateDeliveryNote after confirm failed",
+        orderId,
+        noteError,
+      );
+    }
+    return {
+      ok: true as const,
+      courierId: courier.id,
+      parcelCode: updated.parcelCode ?? undefined,
+      deliveryNoteRef,
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      reason: "api-failed" as const,
+      courierId: courier.id,
+      error:
+        error instanceof HandoffError
+          ? error.detail || error.code
+          : error instanceof Error
+            ? error.message
+            : "failed",
+    };
+  }
+}
+
 function normalizePhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
   if (digits.startsWith("212") && digits.length === 12) {

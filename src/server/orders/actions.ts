@@ -190,7 +190,13 @@ export async function confirmationTransitionAction(formData: FormData) {
     redirect(`/${locale}/admin/confirmation?status=invalid-transition`);
   }
   revalidatePath(`/${locale}/admin/confirmation`);
-  redirect(`/${locale}/admin/confirmation?status=updated`);
+  revalidatePath(`/${locale}/admin/logistics`);
+  revalidatePath(`/${locale}/admin/orders`);
+  redirect(
+    `/${locale}/admin/confirmation?status=${
+      parsed.data.to === "CONFIRMED" ? "confirmed-sent" : "updated"
+    }`,
+  );
 }
 
 export async function assignConfirmationAgentAction(formData: FormData) {
