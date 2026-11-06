@@ -26,8 +26,11 @@ import {
   saveOzonDeliveryNote,
   verifyOzonCredentials,
 } from "./client";
+import { buildOzonParcelNature, buildOzonParcelNote } from "./parcel-note";
 import { isDeliveryProgress, mapOzonStatusToDelivery } from "./status-map";
 import type { OzonCredentials } from "./types";
+
+export { buildOzonParcelNote } from "./parcel-note";
 
 type Actor = { id: string; role: Role };
 
@@ -89,9 +92,7 @@ export async function autoSendConfirmedOrderToOzon(
     return { ok: false as const, reason: "no-courier" as const };
   }
   try {
-    const updated = await sendOrderViaOzon(actor, orderId, courier.id, {
-      note: "Envoi automatique après confirmation",
-    });
+    const updated = await sendOrderViaOzon(actor, orderId, courier.id);
     let deliveryNoteRef: string | undefined;
     try {
       const note = await createDeliveryNoteForOrders(
@@ -143,7 +144,11 @@ async function loadOrderForShip(orderId: string) {
     where: { id: orderId },
     include: {
       city: true,
-      lines: true,
+      lines: {
+        include: {
+          variant: { select: { size: true, color: true } },
+        },
+      },
       courier: true,
     },
   });
@@ -198,9 +203,9 @@ export async function sendOrderViaOzon(
       phone: normalizePhone(order.phone),
       cityId: order.city.ozonCityId,
       address: order.address.trim(),
-      note: [order.code, options.note, order.notes].filter(Boolean).join(" — "),
+      note: buildOzonParcelNote(order, options.note),
       price,
-      nature: order.lines.map((line) => line.productNameFr).join(", ").slice(0, 180),
+      nature: buildOzonParcelNature(order.lines),
       stock,
       open: allowOpen,
       products: stock === 1 ? products : undefined,

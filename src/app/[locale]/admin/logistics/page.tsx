@@ -739,7 +739,7 @@ export default async function LogisticsPage({
             <div>
               <span>Ozon Express</span>
               <h2>
-                {locale === "ar" ? "بون التسليم والطباعة" : "Bons & impression"}
+                {locale === "ar" ? "بون التسليم" : "Bon de livraison"}
               </h2>
             </div>
             <small>

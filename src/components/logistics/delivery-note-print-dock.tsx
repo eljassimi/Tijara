@@ -1,5 +1,8 @@
-import { FileText, LayoutGrid, Printer, SquareStack } from "lucide-react";
+"use client";
 
+import { useEffect, useMemo, useState } from "react";
+
+import { CustomSelect } from "@/components/ui/custom-select";
 import { formatAppDateTime } from "@/lib/time";
 import { ozonDeliveryNotePdfUrls } from "@/server/delivery/ozon-express/client";
 
@@ -7,8 +10,8 @@ export type DeliveryNotePrintItem = {
   id: string;
   externalRef: string;
   status: string;
-  createdAt: Date;
-  savedAt: Date | null;
+  createdAt: Date | string;
+  savedAt: Date | string | null;
   courierName: string;
   orders: Array<{
     id: string;
@@ -17,32 +20,10 @@ export type DeliveryNotePrintItem = {
   }>;
 };
 
-const formats = [
-  {
-    key: "standard" as const,
-    icon: FileText,
-    labelFr: "Bon A4",
-    labelAr: "بون A4",
-    hintFr: "Liste pour le ramasseur",
-    hintAr: "قائمة للمُجمّع",
-  },
-  {
-    key: "ticketsA4" as const,
-    icon: LayoutGrid,
-    labelFr: "Étiquettes A4",
-    labelAr: "ملصقات A4",
-    hintFr: "4 tickets / page",
-    hintAr: "4 تذاكر / صفحة",
-  },
-  {
-    key: "tickets10x10" as const,
-    icon: SquareStack,
-    labelFr: "Stickers 10×10",
-    labelAr: "ملصقات 10×10",
-    hintFr: "Imprimante thermique",
-    hintAr: "طابعة حرارية",
-  },
-];
+function asDate(value: Date | string | null | undefined) {
+  if (!value) return null;
+  return value instanceof Date ? value : new Date(value);
+}
 
 export function DeliveryNotePrintDock({
   locale,
@@ -53,95 +34,101 @@ export function DeliveryNotePrintDock({
   notes: DeliveryNotePrintItem[];
   highlightRef?: string;
 }) {
-  if (!notes.length) return null;
+  const initialId = useMemo(() => {
+    if (!notes.length) return "";
+    if (highlightRef) {
+      const match = notes.find(
+        (note) => note.externalRef.trim() === highlightRef.trim(),
+      );
+      if (match) return match.id;
+    }
+    return notes[0]!.id;
+  }, [highlightRef, notes]);
+
+  const [selectedId, setSelectedId] = useState(initialId);
+  useEffect(() => {
+    setSelectedId(initialId);
+  }, [initialId]);
+
+  const selected =
+    notes.find((note) => note.id === selectedId) ?? notes[0] ?? null;
+
+  if (!selected) return null;
+
+  const pdfs = ozonDeliveryNotePdfUrls(selected.externalRef);
+  const when = asDate(selected.savedAt) ?? asDate(selected.createdAt);
+  const options = notes.map((note) => {
+    const stamp = asDate(note.savedAt) ?? asDate(note.createdAt);
+    const count =
+      locale === "ar"
+        ? `${note.orders.length} طرد`
+        : `${note.orders.length} colis`;
+    const dateBit = stamp ? ` · ${formatAppDateTime(stamp, locale)}` : "";
+    return {
+      value: note.id,
+      label: `${note.externalRef} · ${count}${dateBit}`,
+    };
+  });
 
   return (
-    <div className="bl-print-dock">
-      <div className="bl-print-dock__intro">
-        <Printer size={18} aria-hidden />
-        <div>
-          <strong>
-            {locale === "ar" ? "طباعة بونات التسليم" : "Imprimer les bons"}
-          </strong>
-          <p>
-            {locale === "ar"
-              ? "اختر الصيغة المناسبة لكل بون بعد الإرسال الجماعي."
-              : "Choisissez le format pour chaque bon après un envoi groupé."}
-          </p>
-        </div>
+    <div className="bl-print-bar filter-bar operations-filter-bar">
+      <div className="queue-form-field bl-print-bar__select">
+        <span>{locale === "ar" ? "البون" : "Bon à imprimer"}</span>
+        <CustomSelect
+          name="deliveryNoteId"
+          label={locale === "ar" ? "البون" : "Bon à imprimer"}
+          locale={locale}
+          value={selected.id}
+          onValueChange={setSelectedId}
+          searchable={notes.length > 6}
+          options={options}
+        />
       </div>
 
-      <ul className="bl-print-dock__list">
-        {notes.map((note) => {
-          const pdfs = ozonDeliveryNotePdfUrls(note.externalRef);
-          const active =
-            highlightRef != null &&
-            highlightRef.trim() === note.externalRef.trim();
-          return (
-            <li
-              key={note.id}
-              id={`bl-${note.externalRef}`}
-              className={`bl-print-dock__note${active ? " bl-print-dock__note--active" : ""}`}
-            >
-              <div className="bl-print-dock__meta">
-                <div className="bl-print-dock__ref">
-                  <span>{note.courierName}</span>
-                  <strong dir="ltr">{note.externalRef}</strong>
-                </div>
-                <p>
-                  {locale === "ar"
-                    ? `${note.orders.length} طرد`
-                    : `${note.orders.length} colis`}
-                  {" · "}
-                  {formatAppDateTime(note.savedAt ?? note.createdAt, locale)}
-                  {note.status === "DRAFT"
-                    ? locale === "ar"
-                      ? " · مسودة"
-                      : " · Brouillon"
-                    : ""}
-                </p>
-                <div className="bl-print-dock__parcels">
-                  {note.orders.slice(0, 8).map((order) => (
-                    <span key={order.id} dir="ltr">
-                      {order.parcelCode || order.code}
-                    </span>
-                  ))}
-                  {note.orders.length > 8 ? (
-                    <span>
-                      +{note.orders.length - 8}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
+      <div className="bl-print-bar__meta">
+        <span>
+          {locale === "ar"
+            ? `${selected.orders.length} طرد`
+            : `${selected.orders.length} colis`}
+          {when ? ` · ${formatAppDateTime(when, locale)}` : ""}
+        </span>
+        <small className="bl-print-bar__parcels" dir="ltr">
+          {selected.orders
+            .slice(0, 5)
+            .map((order) => order.parcelCode || order.code)
+            .join(" · ")}
+          {selected.orders.length > 5
+            ? ` · +${selected.orders.length - 5}`
+            : ""}
+        </small>
+      </div>
 
-              <div className="bl-print-dock__formats" role="group">
-                {formats.map((format) => {
-                  const Icon = format.icon;
-                  return (
-                    <a
-                      key={format.key}
-                      className={`bl-print-format bl-print-format--${format.key}`}
-                      href={pdfs[format.key]}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <Icon size={18} aria-hidden />
-                      <span>
-                        <strong>
-                          {locale === "ar" ? format.labelAr : format.labelFr}
-                        </strong>
-                        <small>
-                          {locale === "ar" ? format.hintAr : format.hintFr}
-                        </small>
-                      </span>
-                    </a>
-                  );
-                })}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="bl-print-bar__actions">
+        <a
+          className="button button--ghost button--compact"
+          href={pdfs.standard}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {locale === "ar" ? "بون A4" : "Bon A4"}
+        </a>
+        <a
+          className="button button--ghost button--compact"
+          href={pdfs.ticketsA4}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {locale === "ar" ? "ملصقات A4" : "Étiquettes A4"}
+        </a>
+        <a
+          className="button button--primary button--compact"
+          href={pdfs.tickets10x10}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {locale === "ar" ? "10×10" : "Stickers 10×10"}
+        </a>
+      </div>
     </div>
   );
 }
