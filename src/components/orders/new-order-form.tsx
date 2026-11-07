@@ -152,6 +152,7 @@ export function NewOrderForm({
           invalid={Boolean(error("city")) || state.status === "unknown-city"}
           placeholder={labels.chooseCity}
         />
+        {labels.cityHelp ? <small>{labels.cityHelp}</small> : null}
         {(error("city") || state.status === "unknown-city") && (
           <small className="field-error">
             {state.status === "unknown-city"

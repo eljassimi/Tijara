@@ -80,6 +80,7 @@ export default async function NewOrderPage({
           phone: t("phone"),
           city: t("city"),
           chooseCity: t("chooseCity"),
+          cityHelp: t("cityHelp"),
           product: t("product"),
           chooseProduct: locale === "ar" ? "اختر المنتج" : "Choisir un produit",
           searchProduct:
