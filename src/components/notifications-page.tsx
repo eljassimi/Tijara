@@ -50,8 +50,14 @@ export async function NotificationsPage({
         if (
           typeof values.reference === "string" &&
           values.reference.startsWith("CPAY-")
-        )
-          return "/admin/confirmator-payouts" as const;
+        ) {
+          // Confirmator payouts: agents use their payments page; finance uses the queue.
+          return (
+            user.role === "CONFIRMATION_AGENT"
+              ? "/admin/confirmation/payments"
+              : "/admin/confirmator-payouts"
+          ) as const;
+        }
         return "/admin/finance" as const;
       }
       if (type === "TICKET_REPLY" || type === "TICKET_CREATED")
