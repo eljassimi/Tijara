@@ -52,11 +52,10 @@ export async function NotificationsPage({
           values.reference.startsWith("CPAY-")
         ) {
           // Confirmator payouts: agents use their payments page; finance uses the queue.
-          return (
-            user.role === "CONFIRMATION_AGENT"
-              ? "/admin/confirmation/payments"
-              : "/admin/confirmator-payouts"
-          ) as const;
+          if (user.role === "CONFIRMATION_AGENT") {
+            return "/admin/confirmation/payments" as const;
+          }
+          return "/admin/confirmator-payouts" as const;
         }
         return "/admin/finance" as const;
       }
