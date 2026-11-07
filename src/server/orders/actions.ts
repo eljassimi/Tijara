@@ -330,12 +330,38 @@ export async function deliveryHandoffAction(formData: FormData) {
       );
     redirect(`/${locale}/admin/logistics?status=invalid${focus}`);
   }
+  let deliveryNoteRef: string | undefined;
   try {
     await markOrderSentToDeliveryCompany(
       { id: user.id, role: user.role },
       parsed.data.orderId,
       parsed.data,
     );
+    // Same as auto-send after confirm: create the BL so stickers are printable.
+    try {
+      const { createDeliveryNoteForOrders, isOzonCourier } = await import(
+        "@/server/delivery/ozon-express/service"
+      );
+      const { prisma } = await import("@/lib/prisma");
+      const courier = await prisma.courier.findFirst({
+        where: { id: parsed.data.courierId, active: true },
+      });
+      if (courier && isOzonCourier(courier)) {
+        const note = await createDeliveryNoteForOrders(
+          { id: user.id, role: user.role },
+          courier.id,
+          [parsed.data.orderId],
+          { save: true },
+        );
+        deliveryNoteRef = note.note.externalRef;
+      }
+    } catch (noteError) {
+      console.error(
+        "autoCreateDeliveryNote after handoff failed",
+        parsed.data.orderId,
+        noteError,
+      );
+    }
   } catch (error) {
     const result = handoffStatusFromError(error);
     const params = new URLSearchParams({ status: result.status });
@@ -344,10 +370,14 @@ export async function deliveryHandoffAction(formData: FormData) {
       `/${locale}/admin/logistics?${params.toString()}#order-${parsed.data.orderId}`,
     );
   }
-  // Soft refresh only — keep the agent on the same scroll position.
   revalidatePath(`/${locale}/admin/logistics`);
   revalidatePath(`/${locale}/admin/orders`);
   revalidatePath(`/${locale}/admin`);
+  if (deliveryNoteRef) {
+    redirect(
+      `/${locale}/admin/logistics?status=bl-created&ref=${encodeURIComponent(deliveryNoteRef)}#bons-de-livraison`,
+    );
+  }
 }
 
 export async function bulkDeliveryHandoffAction(formData: FormData) {
@@ -363,9 +393,11 @@ export async function bulkDeliveryHandoffAction(formData: FormData) {
   if (!orderIds.length)
     redirect(`/${locale}/admin/logistics?status=bulk-empty`);
 
-  const { bulkSendOrdersViaOzon, isOzonCourier } = await import(
-    "@/server/delivery/ozon-express/service"
-  );
+  const {
+    bulkSendOrdersViaOzon,
+    createDeliveryNoteForOrders,
+    isOzonCourier,
+  } = await import("@/server/delivery/ozon-express/service");
   const { prisma } = await import("@/lib/prisma");
   const courier = await prisma.courier.findFirst({
     where: { id: courierId, active: true },
@@ -378,9 +410,29 @@ export async function bulkDeliveryHandoffAction(formData: FormData) {
       orderIds,
       courierId,
     );
-    const ok = results.filter((item) => item.ok).length;
+    const okIds = results.filter((item) => item.ok).map((item) => item.orderId);
+    const ok = okIds.length;
     const failed = results.length - ok;
+    let deliveryNoteRef: string | undefined;
+    if (okIds.length) {
+      try {
+        const note = await createDeliveryNoteForOrders(
+          { id: user.id, role: user.role },
+          courierId,
+          okIds,
+          { save: true },
+        );
+        deliveryNoteRef = note.note.externalRef;
+      } catch (noteError) {
+        console.error("autoCreateDeliveryNote after bulk handoff failed", noteError);
+      }
+    }
     revalidatePath(`/${locale}/admin/logistics`);
+    if (deliveryNoteRef) {
+      redirect(
+        `/${locale}/admin/logistics?status=bl-created&ref=${encodeURIComponent(deliveryNoteRef)}&ok=${ok}&failed=${failed}#bons-de-livraison`,
+      );
+    }
     redirect(
       `/${locale}/admin/logistics?status=bulk-done&ok=${ok}&failed=${failed}`,
     );

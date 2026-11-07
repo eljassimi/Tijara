@@ -747,11 +747,20 @@ export default async function LogisticsPage({
               </h2>
             </div>
             <small>
-              {pendingDeliveryNote.length || openDeliveryNotes.length}
+              {pendingDeliveryNote.length
+                ? locale === "ar"
+                  ? `${pendingDeliveryNote.length} بانتظار البون`
+                  : `${pendingDeliveryNote.length} sans bon`
+                : openDeliveryNotes.length}
             </small>
           </div>
           {pendingDeliveryNote.length ? (
             <>
+              <p className="queue-empty" style={{ marginBottom: "0.75rem" }}>
+                {locale === "ar"
+                  ? "طرود مرسلة إلى Ozon بدون بون تسليم — أنشئ البون ثم اطبع الملصقات."
+                  : "Colis déjà chez Ozon sans bon de livraison — créez le bon puis imprimez les stickers."}
+              </p>
               <PreserveScrollForm
                 action={createDeliveryNoteAction}
                 className="filter-bar operations-filter-bar"
