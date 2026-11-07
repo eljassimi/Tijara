@@ -14,21 +14,27 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  const staleCasablanca = await prisma.city.findFirst({
-    where: {
-      OR: [
-        { nameFr: "Casablanca", ozonCityId: 97 },
-        { nameFr: "Casablanca", active: true },
-        { nameFr: { startsWith: "Casablanca" }, ozonCityId: null, active: true },
-      ],
-    },
-    select: { id: true, nameFr: true, ozonCityId: true, active: true },
-  });
-  const activeCount = await prisma.city.count({ where: { active: true } });
-  const hasOulfa = await prisma.city.findFirst({
-    where: { nameFr: "Casablanca – Oulfa", active: true, ozonCityId: { not: null } },
-    select: { id: true },
-  });
+  // Exact equality only — Hostinger MariaDB rejects LIKE across mixed collations.
+  const [activeCount, staleCasablanca, hasOulfa] = await Promise.all([
+    prisma.city.count({ where: { active: true } }),
+    prisma.city.findFirst({
+      where: {
+        OR: [
+          { nameFr: "Casablanca", ozonCityId: 97 },
+          { nameFr: "Casablanca", active: true },
+        ],
+      },
+      select: { id: true },
+    }),
+    prisma.city.findFirst({
+      where: {
+        nameFr: "Casablanca – Oulfa",
+        active: true,
+        ozonCityId: { not: null },
+      },
+      select: { id: true },
+    }),
+  ]);
 
   if (activeCount > 0 && !staleCasablanca && hasOulfa) {
     console.log(
