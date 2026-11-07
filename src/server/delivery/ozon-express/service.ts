@@ -94,28 +94,18 @@ export async function autoSendConfirmedOrderToOzon(
   }
   try {
     const updated = await sendOrderViaOzon(actor, orderId, courier.id);
-    let deliveryNoteRef: string | undefined;
-    try {
-      const note = await createDeliveryNoteForOrders(
-        actor,
-        courier.id,
-        [orderId],
-        { save: true },
-      );
-      deliveryNoteRef = note.note.externalRef;
-    } catch (noteError) {
-      // Parcel is already on Ozon; BL can be created later from logistics.
-      console.error(
-        "autoCreateDeliveryNote after confirm failed",
-        orderId,
-        noteError,
-      );
-    }
+    const withNote = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        parcelCode: true,
+        deliveryNote: { select: { externalRef: true } },
+      },
+    });
     return {
       ok: true as const,
       courierId: courier.id,
-      parcelCode: updated.parcelCode ?? undefined,
-      deliveryNoteRef,
+      parcelCode: withNote?.parcelCode ?? updated.parcelCode ?? undefined,
+      deliveryNoteRef: withNote?.deliveryNote?.externalRef,
     };
   } catch (error) {
     return {
@@ -159,7 +149,7 @@ export async function sendOrderViaOzon(
   actor: Actor,
   orderId: string,
   courierId: string,
-  options: { note?: string } = {},
+  options: { note?: string; createDeliveryNote?: boolean } = {},
 ) {
   if (!(["SUPER_ADMIN", "CONFIRMATION_AGENT"] as Role[]).includes(actor.role)) {
     throw new HandoffError("forbidden");
@@ -263,8 +253,8 @@ export async function sendOrderViaOzon(
       throw new HandoffError("duplicate-parcel", duplicate.code);
     }
 
-    return prisma.$transaction(async (tx) => {
-      const updated = await tx.order.update({
+    const updated = await prisma.$transaction(async (tx) => {
+      const next = await tx.order.update({
         where: { id: order.id },
         data: {
           courierId: courier.id,
@@ -312,8 +302,26 @@ export async function sendOrderViaOzon(
           },
         },
       });
-      return updated;
+      return next;
     });
+
+    // Default on: every successful Ozon send gets a printable delivery note.
+    // Bulk handoff opts out and creates one shared BL for all parcels.
+    if (options.createDeliveryNote !== false) {
+      try {
+        await createDeliveryNoteForOrders(actor, courier.id, [orderId], {
+          save: true,
+        });
+      } catch (noteError) {
+        console.error(
+          "autoCreateDeliveryNote after Ozon send failed",
+          orderId,
+          noteError,
+        );
+      }
+    }
+
+    return updated;
   } catch (error) {
     const message =
       error instanceof OzonExpressError
@@ -349,7 +357,9 @@ export async function bulkSendOrdersViaOzon(
   }> = [];
   for (const orderId of orderIds) {
     try {
-      const updated = await sendOrderViaOzon(actor, orderId, courierId);
+      const updated = await sendOrderViaOzon(actor, orderId, courierId, {
+        createDeliveryNote: false,
+      });
       results.push({
         orderId,
         ok: true,

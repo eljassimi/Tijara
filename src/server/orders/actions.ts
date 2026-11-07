@@ -330,38 +330,12 @@ export async function deliveryHandoffAction(formData: FormData) {
       );
     redirect(`/${locale}/admin/logistics?status=invalid${focus}`);
   }
-  let deliveryNoteRef: string | undefined;
   try {
     await markOrderSentToDeliveryCompany(
       { id: user.id, role: user.role },
       parsed.data.orderId,
       parsed.data,
     );
-    // Same as auto-send after confirm: create the BL so stickers are printable.
-    try {
-      const { createDeliveryNoteForOrders, isOzonCourier } = await import(
-        "@/server/delivery/ozon-express/service"
-      );
-      const { prisma } = await import("@/lib/prisma");
-      const courier = await prisma.courier.findFirst({
-        where: { id: parsed.data.courierId, active: true },
-      });
-      if (courier && isOzonCourier(courier)) {
-        const note = await createDeliveryNoteForOrders(
-          { id: user.id, role: user.role },
-          courier.id,
-          [parsed.data.orderId],
-          { save: true },
-        );
-        deliveryNoteRef = note.note.externalRef;
-      }
-    } catch (noteError) {
-      console.error(
-        "autoCreateDeliveryNote after handoff failed",
-        parsed.data.orderId,
-        noteError,
-      );
-    }
   } catch (error) {
     const result = handoffStatusFromError(error);
     const params = new URLSearchParams({ status: result.status });
@@ -370,12 +344,18 @@ export async function deliveryHandoffAction(formData: FormData) {
       `/${locale}/admin/logistics?${params.toString()}#order-${parsed.data.orderId}`,
     );
   }
+  // Ozon send auto-creates the BL inside sendOrderViaOzon.
+  const { prisma } = await import("@/lib/prisma");
+  const withNote = await prisma.order.findUnique({
+    where: { id: parsed.data.orderId },
+    select: { deliveryNote: { select: { externalRef: true } } },
+  });
   revalidatePath(`/${locale}/admin/logistics`);
   revalidatePath(`/${locale}/admin/orders`);
   revalidatePath(`/${locale}/admin`);
-  if (deliveryNoteRef) {
+  if (withNote?.deliveryNote?.externalRef) {
     redirect(
-      `/${locale}/admin/logistics?status=bl-created&ref=${encodeURIComponent(deliveryNoteRef)}#bons-de-livraison`,
+      `/${locale}/admin/logistics?status=bl-created&ref=${encodeURIComponent(withNote.deliveryNote.externalRef)}#bons-de-livraison`,
     );
   }
 }
