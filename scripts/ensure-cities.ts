@@ -14,14 +14,32 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  const existing = await prisma.city.count({ where: { active: true } });
-  if (existing > 0) {
-    console.log(`Cities already present: ${existing} active`);
+  const staleCasablanca = await prisma.city.findFirst({
+    where: {
+      OR: [
+        { nameFr: "Casablanca", ozonCityId: 97 },
+        { nameFr: "Casablanca", active: true },
+        { nameFr: { startsWith: "Casablanca" }, ozonCityId: null, active: true },
+      ],
+    },
+    select: { id: true, nameFr: true, ozonCityId: true, active: true },
+  });
+  const activeCount = await prisma.city.count({ where: { active: true } });
+  const hasOulfa = await prisma.city.findFirst({
+    where: { nameFr: "Casablanca – Oulfa", active: true, ozonCityId: { not: null } },
+    select: { id: true },
+  });
+
+  if (activeCount > 0 && !staleCasablanca && hasOulfa) {
+    console.log(
+      `Cities already present: ${activeCount} active (Casablanca districts OK)`,
+    );
     return;
   }
+
   const cities = await syncImportedCities(prisma);
   console.log(
-    `Seeded ${cities.length} delivery cities (catalog has ${importedCities.length}).`,
+    `Synced ${cities.length} delivery cities (catalog has ${importedCities.length}).`,
   );
 }
 

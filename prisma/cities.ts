@@ -89,7 +89,7 @@ export async function syncImportedCities(prisma: PrismaClient) {
 
   await prisma.city.updateMany({
     where: { id: { notIn: importedIds } },
-    data: { active: false },
+    data: { active: false, ozonCityId: null, ozonRef: null },
   });
 
   return prisma.city.findMany({

@@ -14,6 +14,7 @@ import { changeDeliveryStatus } from "@/server/orders/service";
 import { confirmationAssignmentScope } from "@/server/orders/confirmation-assignment";
 import { deliveryTransitions } from "@/server/orders/state-machine";
 
+import { resolveOzonCityForParcel } from "./cities";
 import {
   addOzonParcel,
   addParcelsToOzonDeliveryNote,
@@ -164,10 +165,10 @@ export async function sendOrderViaOzon(
     throw new HandoffError("forbidden");
   }
 
-  const [order, courier] = await Promise.all([
-    loadOrderForShip(orderId),
-    prisma.courier.findFirst({ where: { id: courierId, active: true } }),
-  ]);
+  const courier = await prisma.courier.findFirst({
+    where: { id: courierId, active: true },
+  });
+  let order = await loadOrderForShip(orderId);
   if (!courier || !isOzonCourier(courier)) {
     throw new HandoffError("company-inactive");
   }
@@ -179,9 +180,6 @@ export async function sendOrderViaOzon(
   }
   if (!["NOT_SENT", "FAILED"].includes(order.deliverySyncStatus)) {
     throw new HandoffError("already-sent");
-  }
-  if (!order.city.ozonCityId) {
-    throw new HandoffError("city-unmapped");
   }
   if (!order.address?.trim()) {
     throw new HandoffError("address-required");
@@ -196,20 +194,62 @@ export async function sendOrderViaOzon(
   const stock = courier.stockMode === 1 ? 1 : 0;
   const allowOpen = courier.allowOpen === 2 ? 2 : 1;
 
+  async function resolveCity() {
+    try {
+      return await resolveOzonCityForParcel(
+        prisma,
+        order.city,
+        order.address || "",
+      );
+    } catch {
+      throw new HandoffError("city-unmapped");
+    }
+  }
+
+  let resolvedCity = await resolveCity();
+
   try {
-    const created = await addOzonParcel(credentials, {
-      trackingNumber: order.code,
-      receiver: order.customerName,
-      phone: normalizePhone(order.phone),
-      cityId: order.city.ozonCityId,
-      address: order.address.trim(),
-      note: buildOzonParcelNote(order, options.note),
-      price,
-      nature: buildOzonParcelNature(order.lines),
-      stock,
-      open: allowOpen,
-      products: stock === 1 ? products : undefined,
-    });
+    let created;
+    try {
+      const parcelAddress = order.address?.trim() || "";
+      created = await addOzonParcel(credentials, {
+        trackingNumber: order.code,
+        receiver: order.customerName,
+        phone: normalizePhone(order.phone),
+        cityId: resolvedCity.ozonCityId,
+        address: parcelAddress,
+        note: buildOzonParcelNote(order, options.note),
+        price,
+        nature: buildOzonParcelNature(order.lines),
+        stock,
+        open: allowOpen,
+        products: stock === 1 ? products : undefined,
+      });
+    } catch (firstError) {
+      // Stale generic city ids (old Casablanca #97) → resync districts and retry once.
+      const inactiveCity =
+        firstError instanceof OzonExpressError &&
+        /city not active/i.test(firstError.message);
+      if (!inactiveCity) throw firstError;
+      const { syncCitiesFromOzon } = await import("./cities");
+      await syncCitiesFromOzon(prisma, credentials.apiBaseUrl || undefined);
+      order = await loadOrderForShip(orderId);
+      resolvedCity = await resolveCity();
+      const parcelAddress = order.address?.trim() || "";
+      created = await addOzonParcel(credentials, {
+        trackingNumber: order.code,
+        receiver: order.customerName,
+        phone: normalizePhone(order.phone),
+        cityId: resolvedCity.ozonCityId,
+        address: parcelAddress,
+        note: buildOzonParcelNote(order, options.note),
+        price,
+        nature: buildOzonParcelNature(order.lines),
+        stock,
+        open: allowOpen,
+        products: stock === 1 ? products : undefined,
+      });
+    }
 
     const duplicate = await prisma.order.findFirst({
       where: {
@@ -233,6 +273,10 @@ export async function sendOrderViaOzon(
           deliverySyncStatus: "SYNCED",
           sentToCourierAt: new Date(),
           deliverySyncError: null,
+          ...(resolvedCity.matchedCityId &&
+          resolvedCity.matchedCityId !== order.cityId
+            ? { cityId: resolvedCity.matchedCityId }
+            : {}),
           ...(order.deliveryStatus === "NOT_READY"
             ? { deliveryStatus: "AWAITING_PICKUP" }
             : {}),

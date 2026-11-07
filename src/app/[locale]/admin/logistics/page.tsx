@@ -589,7 +589,11 @@ export default async function LogisticsPage({
         <div className="operations-grid">
           {ready.length ? (
             ready.map((order) => {
-              const cityReady = Boolean(order.city.ozonCityId);
+              // Metro parents like Casablanca may have no ozonCityId; send-time
+              // resolution maps them to a district from the address.
+              const cityReady =
+                Boolean(order.city.ozonCityId) ||
+                /casablanca/i.test(order.city.nameFr);
               return (
               <article
                 className={operationsCardTone(order.deliverySyncStatus)}

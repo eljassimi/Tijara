@@ -1,7 +1,12 @@
 import type { PrismaClient } from "@prisma/client";
 
 import { fetchOzonCities } from "./client";
-import { cityLookupKeyFromName } from "./cities-helpers";
+import {
+  cityLookupKeyFromName,
+  isMetroParentCityName,
+  parseOzonDistrictName,
+  pickOzonDistrictCityId,
+} from "./cities-helpers";
 import type { OzonCity } from "./types";
 
 function citySlug(name: string) {
@@ -103,12 +108,13 @@ export async function upsertOzonCities(
     consumed.add(city.id);
   }
 
+  // Stale Ozon ids (e.g. old generic Casablanca #97) must not stay sendable.
   await prisma.city.updateMany({
     where: {
       ozonCityId: { not: null },
       id: { notIn: importedIds },
     },
-    data: { active: false },
+    data: { active: false, ozonCityId: null, ozonRef: null },
   });
 
   return prisma.city.findMany({
@@ -124,4 +130,64 @@ export function resolveOzonCityId(city: {
   slug: string;
 }): number | null {
   return city.ozonCityId;
+}
+
+/**
+ * Resolve the Ozon city id that add-parcel accepts.
+ * Generic metro parents like "Casablanca" are mapped to a district using the
+ * delivery address (Oulfa, Maarif, …), with Centre Ville as fallback.
+ */
+export async function resolveOzonCityForParcel(
+  prisma: PrismaClient,
+  city: {
+    id: string;
+    nameFr: string;
+    nameAr: string;
+    slug: string;
+    ozonCityId: number | null;
+    active: boolean;
+  },
+  address: string,
+): Promise<{ ozonCityId: number; matchedCityId?: string }> {
+  const activeCities = await prisma.city.findMany({
+    where: { active: true, ozonCityId: { not: null } },
+    select: {
+      id: true,
+      nameFr: true,
+      ozonCityId: true,
+    },
+  });
+
+  const districtNames = activeCities.map((entry) => entry.nameFr);
+  const isParent = isMetroParentCityName(city.nameFr, districtNames);
+  const parsedDistrict = parseOzonDistrictName(city.nameFr);
+
+  if (city.active && city.ozonCityId != null && !isParent) {
+    return { ozonCityId: city.ozonCityId, matchedCityId: city.id };
+  }
+
+  const parentName =
+    parsedDistrict?.parent || city.nameFr || city.nameAr || city.slug;
+  const candidates = activeCities
+    .filter((entry) => entry.ozonCityId != null)
+    .map((entry) => ({
+      id: entry.id,
+      nameFr: entry.nameFr,
+      ozonCityId: entry.ozonCityId!,
+    }));
+
+  const pickedId = pickOzonDistrictCityId(parentName, address, candidates);
+  if (pickedId != null) {
+    const matched = candidates.find((entry) => entry.ozonCityId === pickedId);
+    return {
+      ozonCityId: pickedId,
+      matchedCityId: matched?.id,
+    };
+  }
+
+  if (city.ozonCityId != null && city.active) {
+    return { ozonCityId: city.ozonCityId, matchedCityId: city.id };
+  }
+
+  throw new Error("city-unmapped");
 }

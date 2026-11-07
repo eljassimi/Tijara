@@ -3,18 +3,20 @@ import { describe, expect, it } from "vitest";
 import { importedCities } from "../../../prisma/cities-data";
 
 describe("imported city catalog", () => {
-  it("contains the complete supplied delivery list with valid unique records", () => {
-    expect(importedCities).toHaveLength(630);
-    expect(new Set(importedCities.map((city) => city.sourceId)).size).toBe(630);
-    expect(new Set(importedCities.map((city) => city.ref)).size).toBe(630);
+  it("contains the live Ozon Express delivery list with valid unique records", () => {
+    expect(importedCities.length).toBeGreaterThan(700);
+    expect(new Set(importedCities.map((city) => city.sourceId)).size).toBe(
+      importedCities.length,
+    );
     expect(
       importedCities.every(
         (city) =>
-          city.name.trim() && city.deliveryFee >= 20 && city.deliveryFee <= 45,
+          city.name.trim() && city.deliveryFee >= 0 && city.deliveryFee <= 100,
       ),
     ).toBe(true);
-    expect(importedCities).toContainEqual(
-      expect.objectContaining({ name: "Casablanca", deliveryFee: 20 }),
-    );
+    const names = new Set<string>(importedCities.map((city) => city.name));
+    expect(names.has("Casablanca")).toBe(false);
+    expect(names.has("Casablanca – Oulfa")).toBe(true);
+    expect(names.has("Casablanca – Centre Ville")).toBe(true);
   });
 });
